@@ -1,0 +1,15 @@
+# Copyright (c) Foco Liao. All rights reserved.
+author: 'Foco Liao'
+
+train: /home/foco/workspace/DataSets/YOLOv8GP/test_original/images/train/
+val: /home/foco/workspace/DataSets/YOLOv8GP/test_original/images/val/
+
+# Classes
+
+names:
+  0: car
+  1: bus
+  2: truck
+  3: bicycle
+
+nc: 4

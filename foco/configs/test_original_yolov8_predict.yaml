@@ -1,0 +1,9 @@
+# Copyright (c) Foco Liao. All rights reserved.
+author: 'Foco Liao'
+
+# Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
+test_images_dir: /home/foco/workspace/DataSets/YOLOv8GP/test_original/test/images/
+test_labels_dir: /home/foco/workspace/DataSets/YOLOv8GP/test_original/test/labels/
+predict_base_save_dir: /runs/
+increasing_dir_prefix: predict
+checkpoint: yolov8n.pt
