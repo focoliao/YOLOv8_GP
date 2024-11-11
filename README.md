@@ -36,7 +36,7 @@
 - 数据集图像存储：~/images/train/, ~/images/val/
 - 数据集label存储：~/labels/train/, ~/labels/val/
 ##### 1.3.2 准备相应文件：
-- 新建数据yaml文件，见foco/configs/yolov8_gp_data.yaml
+- 新建数据yaml文件，见foco/configs/test_original_yolov8_data.yaml
 - train代码在foco/tools/test_original_yolov8_train.py
 ##### 1.3.3 训练及测试
 - 运行 foco/tools/test_original_yolov8_train.py，可以看到结果
@@ -45,12 +45,16 @@
 - 远程发布release V1.0
 
 ### 2. 修改源代码
+#### 冻结YOLOv8的卷积层部分（backbone），只训练Head层
 #### 2.1 修改head层
-- 在cv2层，修改输出，从4修改为8。具体见ultralytics/nn/modules/head.py 
+- 在cv2层，修改输出，从4修改为8。具体见ultralytics/nn/modules/head.py
 - 
 #### 2.2 修改损失函数
 - 
 #### 2.3 修改predict
+- 
+#### 2.4 修改配置文件
+- 新建数据yaml文件，见foco/configs/yolov8_gp_data.yaml。classes聚焦在道路物体上，不需要原始那么多分类。
 - 
 ### 3. 测试新代码
 #### 3.1 测试train的pipeline
