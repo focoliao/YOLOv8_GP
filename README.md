@@ -46,15 +46,18 @@
 
 ### 2. 修改源代码
 #### 冻结YOLOv8的卷积层部分（backbone），只训练Head层
-#### 2.1 修改head层
+#### 2.1 修改head层:由于需要自定义输出框，需要修改head层的内容
 - 在cv2层，修改输出，从4修改为8。具体见ultralytics/nn/modules/head.py
 - 
 #### 2.2 修改损失函数
 - 
-#### 2.3 修改predict
+#### 2.3 修改predict：由于修改了输出框，需要更改predict的处理逻辑和输出内容
 - 
 #### 2.4 修改配置文件
-- 新建数据yaml文件，见foco/configs/yolov8_gp_data.yaml。classes聚焦在道路物体上，不需要原始那么多分类。
+- 新建数据yaml文件，见foco/configs/yolov8_gp_data.yaml。classes聚焦在道路物体上，不需要原始那么多分类。并按照自己定义的分类设置数据
+- 新建训练yaml文件，见见foco/configs/yolov8_gp.yaml。
+#### 2.5 修改train：
+- 冻结head层之前的参数，不参与初始化训练。具体见：
 - 
 ### 3. 测试新代码
 #### 3.1 测试train的pipeline
