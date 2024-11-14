@@ -13,6 +13,66 @@ from .metrics import bbox_iou, probiou
 from .tal import bbox2dist
 
 
+class GPLoss(nn.Module):
+    '''
+    foco定义的loss，total loss由mse_loss, angle_loss和translation_loss组成
+    '''
+    def __init__(self):
+        super(GPLoss, self).__init__()
+
+    def forward(self, pred_vertices, target_vertices):
+        # MSE Loss for vertices
+        mse_loss = nn.MSELoss()(pred_vertices, target_vertices)
+
+        # Angle loss
+        angle_loss = self.angle_loss(pred_vertices, target_vertices)
+
+        # Translation loss
+        translation_loss = self.translation_loss(pred_vertices, target_vertices)
+
+        # Total loss
+        total_loss = mse_loss + angle_loss + translation_loss
+        
+        return total_loss
+
+    def angle_loss(self, pred_vertices, target_vertices):
+        """
+        Compute angle loss between predicted and target vertices by calculating 
+        the angle difference of the first edge of the quadrilateral.
+
+        Parameters:
+        pred_vertices: Tensor of shape (N, 4, 2), where N is the batch size
+                       and 4 represents the 4 vertices of the quadrilateral.
+        target_vertices: Tensor of the same shape as pred_vertices.
+
+        Returns:
+        Tensor representing the angle loss for each element in the batch.
+        """
+
+        # Extract the first edge for both predicted and target vertices
+        pred_edge = pred_vertices[:, 1] - pred_vertices[:, 0]  # (N, 2)
+        target_edge = target_vertices[:, 1] - target_vertices[:, 0]  # (N, 2)
+
+        # Compute angles for predicted and target edges
+        pred_angle = torch.atan2(pred_edge[:, 1], pred_edge[:, 0])  # (N,)
+        target_angle = torch.atan2(target_edge[:, 1], target_edge[:, 0])  # (N,)
+
+        # Compute angle difference
+        angle_diff = torch.abs(pred_angle - target_angle)  # (N,)
+
+        # Ensure the angle difference is within [0, π]
+        angle_loss = torch.minimum(angle_diff, 2 * torch.pi - angle_diff)
+
+        return angle_loss.mean()  # Return mean angle loss over the batch
+
+    def translation_loss(self, pred_vertices, target_vertices):
+        pred_centroid = pred_vertices.mean(dim=1)  # Shape (N, 2)
+        target_centroid = target_vertices.mean(dim=1)  # Shape (N, 2)
+    
+        # Compute the Euclidean distance between centroids
+        return torch.mean(torch.norm(pred_centroid - target_centroid, p=2, dim=1))
+
+
 class VarifocalLoss(nn.Module):
     """
     Varifocal loss by Zhang et al.
@@ -167,14 +227,15 @@ class v8DetectionLoss:
         self.hyp = h
         self.stride = m.stride  # model strides
         self.nc = m.nc  # number of classes
-        self.no = m.nc + m.reg_max * 4
+        self.no = m.nc + m.reg_max * 8
         self.reg_max = m.reg_max
         self.device = device
 
         self.use_dfl = m.reg_max > 1
 
         self.assigner = TaskAlignedAssigner(topk=tal_topk, num_classes=self.nc, alpha=0.5, beta=6.0)
-        self.bbox_loss = BboxLoss(m.reg_max).to(device)
+        # self.bbox_loss = BboxLoss(m.reg_max).to(device)
+        self.bbox_loss = GPLoss()
         self.proj = torch.arange(m.reg_max, dtype=torch.float, device=device)
 
     def preprocess(self, targets, batch_size, scale_tensor):

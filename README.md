@@ -48,9 +48,10 @@
 #### 冻结YOLOv8的卷积层部分（backbone），只训练Head层
 #### 2.1 修改head层:由于需要自定义输出框，需要修改head层的内容
 - 在cv2层，修改输出，从4修改为8。具体见ultralytics/nn/modules/head.py
-- 
+- 对应reg_max部分，都从*4改成*8。具体见ultralytics/nn/modules/head.py
 #### 2.2 修改损失函数
-- 
+- 修改输出部分，从4修改为8。具体见ultralytics\utils\loss.py
+- 增加自定义loss。具体见ultralytics\utils\loss.py
 #### 2.3 修改predict：由于修改了输出框，需要更改predict的处理逻辑和输出内容
 - 
 #### 2.4 修改配置文件
