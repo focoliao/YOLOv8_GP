@@ -282,7 +282,9 @@ class v8DetectionLoss:
 
         # Targets
         targets = torch.cat((batch["batch_idx"].view(-1, 1), batch["cls"].view(-1, 1), batch["bboxes"]), 1)
+        print(f'---1> batch["bboxes"]:{batch["bboxes"]}')
         targets = self.preprocess(targets.to(self.device), batch_size, scale_tensor=imgsz[[1, 0, 1, 0]])
+        print(f'---2> targets:{targets}')
         gt_labels, gt_bboxes = targets.split((1, 8), 2)  # cls, xyxy  --> 修改为： cls, x1y1x2y2x3y3x4y4
         mask_gt = gt_bboxes.sum(2, keepdim=True).gt_(0.0)
 

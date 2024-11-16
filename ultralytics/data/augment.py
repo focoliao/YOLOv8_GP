@@ -2302,7 +2302,6 @@ def v8_transforms(dataset, imgsz, hyp, stretch=False):
             LOGGER.warning("WARNING ⚠️ No 'flip_idx' array defined in data.yaml, setting augmentation 'fliplr=0.0'")
         elif flip_idx and (len(flip_idx) != kpt_shape[0]):
             raise ValueError(f"data.yaml flip_idx={flip_idx} length must be equal to kpt_shape[0]={kpt_shape[0]}")
-
     return Compose(
         [
             pre_transform,

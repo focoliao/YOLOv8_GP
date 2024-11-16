@@ -65,7 +65,20 @@
 - cache_labels：用于从文件中加载label并cache。实际在ultralytics\data\utils.py中的verify_image_label中,进行加载及处理逻辑。
 - 修改判别为segment的逻辑，从>6改成>10：verify_image_label
 - 修改xywh2xyxy，xyxy2xywh：变成直接输出，因为虽然我们让程序以为输入的为xywh，实际上，输入的是xyxy的8个点。ultralytics\utils\ops.py，ultralytics\data\augment.py _update_labels
-- 
+- yolov8默认作了很多图像增强，在ultralytics\cfg\default.yaml中，将所有增强全都关闭：
+  mosaic: 0.0          # Mosaic 关闭
+  copy_paste: 0.0      # Copy-Paste 关闭
+  mixup: 0.0           # MixUp 关闭
+  degrees: 0.0         # 随机旋转角度设置为 0
+  translate: 0.0       # 平移增强关闭
+  scale: 0.0           # 缩放增强关闭
+  shear: 0.0           # 剪切增强关闭
+  perspective: 0.0     # 透视变换关闭
+  hsv_h: 0.0           # 颜色增强关闭（色调调整）
+  hsv_s: 0.0           # 颜色增强关闭（饱和度调整）
+  hsv_v: 0.0           # 颜色增强关闭（亮度调整）
+  flipud: 0.0          # 垂直翻转关闭
+  fliplr: 0.0          # 水平翻转关闭
 
 ### 3. 测试新代码
 #### 3.1 测试train的pipeline
