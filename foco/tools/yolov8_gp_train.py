@@ -27,10 +27,15 @@ def main():
     config = misc_tools.dict_to_namespace(config_dict)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    print("----GPU信息检查")
-    index = int(device.index)
-    print("- GPU索引号：",index)
-    print("- GPU名称：",torch.cuda.get_device_name(index))
+    if torch.cuda.is_available():
+        print("----GPU信息检查")
+        index = int(device.index)
+        print("- GPU索引号：",index)
+        print("- GPU名称：",torch.cuda.get_device_name(index))
+    else:
+        print("----GPU信息检查----")
+        print("- GPU是否可用：否")
+        print("- 使用的设备：CPU")
 
     print(f"---YOLO.__module__:{YOLO.__module__}")
     # 加载模型
