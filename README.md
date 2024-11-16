@@ -64,6 +64,7 @@
 - 具体见ultralytics\data\dataset.py。逐条处理人如下
 - cache_labels：用于从文件中加载label并cache。实际在ultralytics\data\utils.py中的verify_image_label中,进行加载及处理逻辑。
 - 修改判别为segment的逻辑，从>6改成>10：verify_image_label
+- 修改xywh2xyxy，xyxy2xywh：变成直接输出，因为虽然我们让程序以为输入的为xywh，实际上，输入的是xyxy的8个点。ultralytics\utils\ops.py，ultralytics\data\augment.py _update_labels
 - 
 
 ### 3. 测试新代码
