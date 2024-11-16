@@ -7,8 +7,8 @@ val: /home/foco/workspace/DataSets/YOLOv8GP/images/val/
 # Classes
 
 names:
-  0: bicycle
-  1: car
+  0: car
+  1: bicycle
   2: truck
   3: bus
 

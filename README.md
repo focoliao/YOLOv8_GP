@@ -60,6 +60,12 @@
 #### 2.5 修改train：
 - 冻结head层之前的参数，不参与初始化训练。具体见：
 - 
+#### 2.6 修改DataLoader
+- 具体见ultralytics\data\dataset.py。逐条处理人如下
+- cache_labels：用于从文件中加载label并cache。实际在ultralytics\data\utils.py中的verify_image_label中,进行加载及处理逻辑。
+- 修改判别为segment的逻辑，从>6改成>10：verify_image_label
+- 
+
 ### 3. 测试新代码
 #### 3.1 测试train的pipeline
 #### 3.2 测试predict

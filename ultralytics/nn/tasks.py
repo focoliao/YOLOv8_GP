@@ -282,7 +282,6 @@ class BaseModel(nn.Module):
         """
         if getattr(self, "criterion", None) is None:
             self.criterion = self.init_criterion()
-
         preds = self.forward(batch["img"]) if preds is None else preds
         return self.criterion(preds, batch)
 
