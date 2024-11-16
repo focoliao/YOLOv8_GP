@@ -1,8 +1,11 @@
 # Copyright (c) Foco Liao. All rights reserved.
 author: 'Foco Liao'
 
-train: /home/foco/workspace/DataSets/YOLOv8GP/images/train/
-val: /home/foco/workspace/DataSets/YOLOv8GP/images/val/
+# train: /home/foco/workspace/DataSets/YOLOv8GP/images/train/   # linux系统中的位置
+# val: /home/foco/workspace/DataSets/YOLOv8GP/images/val/       # linux系统中的位置
+
+train: /Users/foco/Desktop/work/workspace/DataSets/YOLOv8GP/images/train/     # Mac中的位置
+val: /Users/foco/Desktop/work/workspace/DataSets/YOLOv8GP/images/val/         # Mac中的位置
 
 # Classes
 
