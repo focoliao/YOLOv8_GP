@@ -35,12 +35,12 @@ class Detect(nn.Module):
         self.nc = nc  # number of classes
         self.nl = len(ch)  # number of detection layers
         self.reg_max = 16  # DFL channels (ch[0] // 16 to scale 4/8/12/16/20 for n/s/m/l/x)
-        self.no = nc + self.reg_max * 8  # number of outputs per anchor
+        self.no = nc + self.reg_max * 16  # number of outputs per anchor    # 从*4修改为*16
         print("-----------hahaah")
         self.stride = torch.zeros(self.nl)  # strides computed during build
-        c2, c3 = max((16, ch[0] // 4, self.reg_max * 8)), max(ch[0], min(self.nc, 100))  # channels
+        c2, c3 = max((16, ch[0] // 4, self.reg_max * 16)), max(ch[0], min(self.nc, 100))  # channels    修改c2层，输出8个点，16个值
         self.cv2 = nn.ModuleList(
-            nn.Sequential(Conv(x, c2, 3), Conv(c2, c2, 3), nn.Conv2d(c2, 8 * self.reg_max, 1)) for x in ch
+            nn.Sequential(Conv(x, c2, 3), Conv(c2, c2, 3), nn.Conv2d(c2, 16 * self.reg_max, 1)) for x in ch
         )
         self.cv3 = nn.ModuleList(nn.Sequential(Conv(x, c3, 3), Conv(c3, c3, 3), nn.Conv2d(c3, self.nc, 1)) for x in ch)
         self.dfl = DFL(self.reg_max) if self.reg_max > 1 else nn.Identity()
@@ -95,10 +95,10 @@ class Detect(nn.Module):
             self.shape = shape
 
         if self.export and self.format in {"saved_model", "pb", "tflite", "edgetpu", "tfjs"}:  # avoid TF FlexSplitV ops
-            box = x_cat[:, : self.reg_max * 4]
-            cls = x_cat[:, self.reg_max * 4 :]
+            box = x_cat[:, : self.reg_max * 16]
+            cls = x_cat[:, self.reg_max * 16 :]
         else:
-            box, cls = x_cat.split((self.reg_max * 4, self.nc), 1)
+            box, cls = x_cat.split((self.reg_max * 16, self.nc), 1)
 
         if self.export and self.format in {"tflite", "edgetpu"}:
             # Precompute normalization factor to increase numerical stability
@@ -289,16 +289,16 @@ class WorldDetect(Detect):
 
         # Inference path
         shape = x[0].shape  # BCHW
-        x_cat = torch.cat([xi.view(shape[0], self.nc + self.reg_max * 4, -1) for xi in x], 2)
+        x_cat = torch.cat([xi.view(shape[0], self.nc + self.reg_max * 16, -1) for xi in x], 2)
         if self.dynamic or self.shape != shape:
             self.anchors, self.strides = (x.transpose(0, 1) for x in make_anchors(x, self.stride, 0.5))
             self.shape = shape
 
         if self.export and self.format in {"saved_model", "pb", "tflite", "edgetpu", "tfjs"}:  # avoid TF FlexSplitV ops
-            box = x_cat[:, : self.reg_max * 4]
-            cls = x_cat[:, self.reg_max * 4 :]
+            box = x_cat[:, : self.reg_max * 16]
+            cls = x_cat[:, self.reg_max * 16 :]
         else:
-            box, cls = x_cat.split((self.reg_max * 4, self.nc), 1)
+            box, cls = x_cat.split((self.reg_max * 16, self.nc), 1)
 
         if self.export and self.format in {"tflite", "edgetpu"}:
             # Precompute normalization factor to increase numerical stability

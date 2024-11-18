@@ -88,7 +88,9 @@ def bbox_iou(box1, box2, xywh=True, GIoU=False, DIoU=False, CIoU=False, eps=1e-7
     Returns:
         (torch.Tensor): IoU, GIoU, DIoU, or CIoU values depending on the specified flags.
     """
-    # Get the coordinates of bounding boxes
+    # foco修改：box1，box2，不管xywh还是xyxy，都是8个点的(x,y)，将
+    # Get the coordinates of bounding boxes: 这段是原始的，注释掉
+    '''
     if xywh:  # transform from xywh to xyxy
         (x1, y1, w1, h1), (x2, y2, w2, h2) = box1.chunk(4, -1), box2.chunk(4, -1)
         w1_, h1_, w2_, h2_ = w1 / 2, h1 / 2, w2 / 2, h2 / 2
@@ -99,7 +101,37 @@ def bbox_iou(box1, box2, xywh=True, GIoU=False, DIoU=False, CIoU=False, eps=1e-7
         b2_x1, b2_y1, b2_x2, b2_y2 = box2.chunk(4, -1)
         w1, h1 = b1_x2 - b1_x1, b1_y2 - b1_y1 + eps
         w2, h2 = b2_x2 - b2_x1, b2_y2 - b2_y1 + eps
-
+    '''
+    print(f'--->box1:{box1}')
+    print(f'--->box1.shape:{box1.shape}')
+    print(f'--->box2:{box2}')
+    print(f'--->box2.shape:{box2.shape}')
+    # 将 16个点的box，转换成4个点的box：16个点分8组，
+    chunks_tmp = box1.view(-1,8,2)
+    # 提取每组的第一个元素为 x 坐标，第二个元素为 y 坐标
+    x_coords = chunks_tmp[:,:,0]  # 每组的 x 坐标
+    y_coords = chunks_tmp[:,:,1]  # 每组的 y 坐标
+    # 计算 x 坐标和 y 坐标的最小值和最大值
+    b1_x1 = torch.min(x_coords,dim=1)[0]  # 最小值 x1
+    b1_x2 = torch.max(x_coords,dim=1)[0]  # 最大值 x2
+    b1_y1 = torch.min(y_coords,dim=1)[0]  # 最小值 y1
+    b1_y2 = torch.max(y_coords,dim=1)[0]  # 最大值 y2
+    # 计算w1h1
+    w1, h1 = b1_x2 - b1_x1, b1_y2 - b1_y1 + eps
+    
+    # 将 16个点的box，转换成4个点的box：16个点分8组，
+    chunks_tmp = box2.view(-1,8,2)
+    # 提取每组的第一个元素为 x 坐标，第二个元素为 y 坐标
+    x_coords = chunks_tmp[:,:,0]  # 每组的 x 坐标
+    y_coords = chunks_tmp[:,:,1]  # 每组的 y 坐标
+    # 计算 x 坐标和 y 坐标的最小值和最大值
+    b2_x1 = torch.min(x_coords,dim=1)[0]  # 最小值 x1
+    b2_x2 = torch.max(x_coords,dim=1)[0]  # 最大值 x2
+    b2_y1 = torch.min(y_coords,dim=1)[0]  # 最小值 y1
+    b2_y2 = torch.max(y_coords,dim=1)[0]  # 最大值 y2
+    # 计算w2h2
+    w2, h2 = b2_x2 - b2_x1, b2_y2 - b2_y1 + eps
+    
     # Intersection area
     inter = (b1_x2.minimum(b2_x2) - b1_x1.maximum(b2_x1)).clamp_(0) * (
         b1_y2.minimum(b2_y2) - b1_y1.maximum(b2_y1)

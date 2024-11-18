@@ -115,10 +115,11 @@ class TaskAlignedAssigner(nn.Module):
         print(f'--->pd_bboxes.shape:{pd_bboxes.shape}')
         print(f'--->pd_bboxes:{pd_bboxes}')
         print(f'--->gt_bboxes:{gt_bboxes}')
-        # 修改pd_boxes的计算逻辑
+        # 修改pd_boxes的计算逻辑: 16个点中，x的最小值，x的最大值，y的最小值，y的最大值组成xyxy格式的pd_boxes
         pd_boxes = pd_bboxes.unsqueeze(1).expand(-1, self.n_max_boxes, -1, -1)[mask_gt]
-        # 修改gt_boxes的计算逻辑
+        # 修改gt_boxes的计算逻辑：16个点中，x的最小值，x的最大值，y的最小值，y的最大值组成xyxy格式的pd_boxes
         gt_boxes = gt_bboxes.unsqueeze(2).expand(-1, -1, na, -1)[mask_gt]
+        print(f'--->gt_boxes:{gt_boxes}')
         overlaps[mask_gt] = self.iou_calculation(gt_boxes, pd_boxes)
 
         align_metric = bbox_scores.pow(self.alpha) * overlaps.pow(self.beta)
@@ -230,12 +231,25 @@ class TaskAlignedAssigner(nn.Module):
         """
         n_anchors = xy_centers.shape[0]
         bs, n_boxes, _ = gt_bboxes.shape
-        # foco修改：将16个点分为8组，第三组为flt,第五组为erb，分别赋值给lt和rb
+        # foco修改：将16个点分为8组，可以获得x最小值x0,x最大值x1,y最小值y0,y最大值y1，从而组成lt和rb
+        # 将 gt_bboxes 转换成形状 (b, n_boxes, 8, 2)，即分为 8 组，每组包含 2 个点
         chunks_tmp = gt_bboxes.view(-1,1,16).chunk(8,dim=2)
-        flt = chunks_tmp[2] # 第三组为flt
-        erb = chunks_tmp[4] # 第三组为erb
+        # 提取每组的第一个元素为 x 坐标，第二个元素为 y 坐标
+        x_coords = [chunk[:, :, 0] for chunk in chunks_tmp]  # 每组的 x 坐标
+        y_coords = [chunk[:, :, 1] for chunk in chunks_tmp]  # 每组的 y 坐标
+        # 将 x 坐标和 y 坐标合并为一个新的张量，形状为 (b, n_boxes, 8)
+        x_coords_tensor = torch.stack(x_coords, dim=-1)  # 形状: (b, n_boxes, 8)
+        y_coords_tensor = torch.stack(y_coords, dim=-1)  # 形状: (b, n_boxes, 8)
+        # 计算 x 坐标和 y 坐标的最小值和最大值
+        x_min = x_coords_tensor.min(dim=-1).values  # 最小值 x1
+        x_max = x_coords_tensor.max(dim=-1).values  # 最大值 x2
+        y_min = y_coords_tensor.min(dim=-1).values  # 最小值 y1
+        y_max = y_coords_tensor.max(dim=-1).values  # 最大值 y2
+        # 计算左上角 (lt) 和右下角 (rb)
+        lt = torch.stack((x_min, y_min), dim=-1)  # 左上角 (x1, y1)
+        rb = torch.stack((x_max, y_max), dim=-1)  # 右下角 (x2, y2)
         # lt, rb = gt_bboxes.view(-1, 1, 16).chunk(2, 2)  # left-top, right-bottom 修改为：front-left-top, end-right-bottom
-        bbox_deltas = torch.cat((xy_centers[None] - flt, erb - xy_centers[None]), dim=2).view(bs, n_boxes, n_anchors, -1)
+        bbox_deltas = torch.cat((xy_centers[None] - lt, rb - xy_centers[None]), dim=2).view(bs, n_boxes, n_anchors, -1)
         # return (bbox_deltas.min(3)[0] > eps).to(gt_bboxes.dtype)
         return bbox_deltas.amin(3).gt_(eps)
 
@@ -325,24 +339,43 @@ def make_anchors(feats, strides, grid_cell_offset=0.5):
 
 def dist2bbox(distance, anchor_points, xywh=True, dim=-1):
     """Transform distance(ltrb) to box(xyxy)."""
-    ldxdy, tdxdy, rdxdy, bdxdy = distance.chunk(4, dim)
-    x1y1 = anchor_points - ldxdy   # 左下角坐标
-    x2y2 = anchor_points - tdxdy   # 左上角坐标
-    x3y3 = anchor_points + rdxdy   # 右上角坐标
-    x4y4 = anchor_points + bdxdy   # 右下角坐标
+    # foco修改
+    # 目前算法：随便定了一个：下为加，上为减。保持dist2bbox和bbox2dis互为逆运算即可
+    flb, elb, erb, frb, flt, frt, ert, elt = distance.chunk(8, dim)
+    x1y1 = anchor_points + flb   # 前左下坐标：好像有问题
+    x2y2 = anchor_points + elb   # 后左下坐标
+    x3y3 = anchor_points + erb   # 后右下坐标
+    x4y4 = anchor_points + frb   # 前右下坐标
+    x5y5 = anchor_points - flt   # 前左上坐标
+    x6y6 = anchor_points - frt   # 前右上坐标
+    x7y7 = anchor_points - ert   # 后右上坐标
+    x8y8 = anchor_points - elt   # 后左上坐标
+
     '''
     if xywh:
         c_xy = (x1y1 + x2y2) / 2
         wh = x2y2 - x1y1
         return torch.cat((c_xy, wh), dim)  # xywh bbox
     '''
-    return torch.cat((x1y1, x2y2, x3y3, x4y4), dim)  # xyxy bbox
+    return torch.cat((x1y1, x2y2, x3y3, x4y4, x5y5, x6y6, x7y7, x8y8), dim)  # xyxy bbox
 
 
 def bbox2dist(anchor_points, bbox, reg_max):
     """Transform bbox(xyxy) to dist(ltrb)."""
-    x1y1, x2y2 = bbox.chunk(2, -1)
-    return torch.cat((anchor_points - x1y1, x2y2 - anchor_points), -1).clamp_(0, reg_max - 0.01)  # dist (lt, rb)
+    # foco修改：修改为8个点离anchor的距离。但是加减如何处理呢？
+    # 目前算法：随便定了一个：下为加，上为减。保持dist2bbox和bbox2dis互为逆运算即可
+    x1y1, x2y2, x3y3, x4y4, x5y5, x6y6, x7y7, x8y8 = bbox.chunk(8, dim=-1)
+    # x1y1, x2y2 = bbox.chunk(2, -1)
+    flb = - anchor_points + x1y1   # 前左下坐标：好像有问题
+    elb = - anchor_points + x2y2   # 后左下坐标
+    erb = - anchor_points + x3y3   # 后右下坐标
+    frb = - anchor_points + x4y4   # 前右下坐标
+    flt = anchor_points - x5y5   # 前左上坐标
+    frt = anchor_points - x6y6   # 前右上坐标
+    ert = anchor_points - x7y7   # 后右上坐标
+    elt = anchor_points - x8y8   # 后左上坐标
+    # return torch.cat((anchor_points - x1y1, x2y2 - anchor_points), -1).clamp_(0, reg_max - 0.01)  # dist (lt, rb)
+    return torch.cat((flb, elb, erb, frb, flt, frt, ert, elt), -1).clamp_(0, reg_max - 0.01)  # dist (lt, rb)
 
 
 def dist2rbox(pred_dist, pred_angle, anchor_points, dim=-1):

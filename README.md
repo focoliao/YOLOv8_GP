@@ -17,11 +17,11 @@
 1. 修改DataSet，使之能正确载入16个点(8对(x,y))数据，正确进行训练。
 - 输入label，设定：(前：front, 后：end)；(左：left,右：right)；(上：top，下：bottom)。点的顺序从车头左下-->车尾左上，具体顺序为：前左下(flb)->后左下(elb)->后右下(erb)->前右下(frb)->前左上(flt)->前右上(frt)->后右上(ert)->后左上(elt)。见下图：
 ![alt text](image.png)
-- 按照上述设定，中心点为：(flt+erb)/2, 对应为第3和第5个点。
+- 按照上述设定，计算lt和rb为：所有点中(x_min,y_max)为lt，(x_max, y_min)为rb。
 2. 修改目标分配策略，主要是修改TaskAlignedAssigner
 - 修改anchor点在真值范围内的：修改select_candidates_in_gts
-- 
-2. 修改head层，
+- 修改bbox_iou逻辑：ultralytics/utils/metrics.py bbox_iou
+3. 修改head层，
 - 将ltrb修改成flb, elb, erb, frb, flt, frt, ert, elt。每个点都包含(x,y)坐标。
 - (2)修改损失函数;
 - (3)修改后处理。具体内容参见“执行步骤”
@@ -57,12 +57,19 @@
 
 ### 2. 修改源代码
 #### 冻结YOLOv8的卷积层部分（backbone），只训练Head层
-#### 2.1 修改head层:由于需要自定义输出框，需要修改head层的内容
-- 在cv2层，修改输出，从4修改为8。具体见ultralytics/nn/modules/head.py
-- 对应reg_max部分，都从*4改成*8。具体见ultralytics/nn/modules/head.py
+#### 2.0 修改前需要做的动作
+- 在根目录下，执行“pip install -e .” 用于保证修改源代码后，运行时会运行最新代码，而不是原始module中的代码。
+- 需要注意conda环境和pip环境，以免出现不起作用的情况。
+#### 2.1 修改head层:由于需要自定义输出框，需要修改head层的内容(为YOLOv8网络架构的第22层)
+- 在cv2层，修改输出，从4修改为16。具体见ultralytics/nn/modules/head.py
+- 对应reg_max部分，都从*4改成*16。具体见ultralytics/nn/modules/head.py
 #### 2.2 修改损失函数
-- 修改输出部分，从4修改为8。具体见ultralytics\utils\loss.py
-- 增加自定义loss。具体见ultralytics\utils\loss.py
+- 修改输出部分，从4修改为8。具体见ultralytics/utils/loss.py
+- 增加自定义loss。具体见ultralytics/utils/loss.py
+- 修改输出层为reg_max * 16，具体见ultralytics/utils/loss.py
+- 修改dist2bbox，具体见ultralytics/utils/tal.py dist2bbox
+- 原来使用BboxLoss, 返回loss_iou和loss_dfl。采用GPLoss函数，尽量覆盖BboxLoss的内容。
+
 #### 2.3 修改predict：由于修改了输出框，需要更改predict的处理逻辑和输出内容
 - 
 #### 2.4 修改配置文件
@@ -70,7 +77,7 @@
 - 新建训练yaml文件，见见foco/configs/yolov8_gp.yaml。
 #### 2.5 修改train：
 - 冻结head层之前的参数，不参与初始化训练。具体见：
-- 
+- 核心model代码在ultralytics/nn/tasks.py BaseModel
 #### 2.6 修改DataLoader
 - 具体见ultralytics\data\dataset.py。逐条处理人如下
 - cache_labels：用于从文件中加载label并cache。实际在ultralytics\data\utils.py中的verify_image_label中,进行加载及处理逻辑。

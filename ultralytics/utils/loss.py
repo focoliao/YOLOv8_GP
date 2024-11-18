@@ -16,24 +16,44 @@ from .tal import bbox2dist
 class GPLoss(nn.Module):
     '''
     foco定义的loss，total loss由mse_loss, angle_loss和translation_loss组成
+    由于YOLOv8的情况，增加dfl_loss
     '''
-    def __init__(self):
+    def __init__(self, reg_max=16):
         super(GPLoss, self).__init__()
+        self.dfl_loss = DFLoss(reg_max) if reg_max > 1 else None
 
-    def forward(self, pred_vertices, target_vertices):
+    def forward(self, pred_dist, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask):
+        # 处理输入数据：将pred和target都分为top和bottom
+        chunked_pred = pred_bboxes.chunk(2, dim=-1)  # 将 pred_bboxes 沿最后一个维度拆分为 2 个块
+        pred_vertices_top, pred_vertices_bottom = chunked_pred[1], chunked_pred[0]  # 前面8个为底部的，后面8个为顶部的
+        chunked_target = target_bboxes.chunk(2, dim=-1) # 将 target_bboxes 沿最后一个维度拆分为 2 个块
+        target_vertices_top, target_vertices_bottom = chunked_target[1], chunked_target[0]  # 前面8个为底部的，后面8个为顶部的
+        
         # MSE Loss for vertices
-        mse_loss = nn.MSELoss()(pred_vertices, target_vertices)
-
+        mse_loss_top = nn.MSELoss()(pred_vertices_top, target_vertices_top)
+        mse_loss_bottom = nn.MSELoss()(pred_vertices_bottom, target_vertices_bottom)
         # Angle loss
-        angle_loss = self.angle_loss(pred_vertices, target_vertices)
+        angle_loss_top = self.angle_loss(pred_vertices_top, target_vertices_top)
+        angle_loss_bottom = self.angle_loss(pred_vertices_bottom, target_vertices_bottom)
 
         # Translation loss
-        translation_loss = self.translation_loss(pred_vertices, target_vertices)
+        translation_loss_top = self.translation_loss(pred_vertices_top, target_vertices_top)
+        translation_loss_bottom = self.translation_loss(pred_vertices_bottom, target_vertices_bottom)
 
         # Total loss
-        total_loss = mse_loss + angle_loss + translation_loss
+        so_called_iou_loss = mse_loss_top + mse_loss_bottom + angle_loss_top + angle_loss_bottom + translation_loss_top + translation_loss_bottom
         
-        return total_loss
+        weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)
+
+        # DFL loss
+        if self.dfl_loss:
+            target_ltrb = bbox2dist(anchor_points, target_bboxes, self.dfl_loss.reg_max - 1)
+            loss_dfl = self.dfl_loss(pred_dist[fg_mask].view(-1, self.dfl_loss.reg_max), target_ltrb[fg_mask]) * weight
+            loss_dfl = loss_dfl.sum() / target_scores_sum
+        else:
+            loss_dfl = torch.tensor(0.0).to(pred_dist.device)
+
+        return so_called_iou_loss, loss_dfl 
 
     def angle_loss(self, pred_vertices, target_vertices):
         """
@@ -221,13 +241,14 @@ class v8DetectionLoss:
         """Initializes v8DetectionLoss with the model, defining model-related properties and BCE loss function."""
         device = next(model.parameters()).device  # get model device
         h = model.args  # hyperparameters
-
+        print(f'--->before m.i:{model.model[-1].i}')
         m = model.model[-1]  # Detect() module
+        print(f'---> m.i:{m.i}')
         self.bce = nn.BCEWithLogitsLoss(reduction="none")
         self.hyp = h
         self.stride = m.stride  # model strides
         self.nc = m.nc  # number of classes
-        self.no = m.nc + m.reg_max * 8
+        self.no = m.nc + m.reg_max * 16     # 从*4修改成*16
         self.reg_max = m.reg_max
         self.device = device
 
@@ -258,9 +279,10 @@ class v8DetectionLoss:
 
     def bbox_decode(self, anchor_points, pred_dist):
         """Decode predicted object bounding box coordinates from anchor points and distribution."""
+        print(f'===>self.use_dfl:{self.use_dfl}')
         if self.use_dfl:
             b, a, c = pred_dist.shape  # batch, anchors, channels
-            pred_dist = pred_dist.view(b, a, 8, c // 8).softmax(3).matmul(self.proj.type(pred_dist.dtype))  # 修改从4个点变成8个点
+            pred_dist = pred_dist.view(b, a, 16, c // 16).softmax(3).matmul(self.proj.type(pred_dist.dtype))  # 修改从4个点变成16个点
             # pred_dist = pred_dist.view(b, a, c // 4, 4).transpose(2,3).softmax(3).matmul(self.proj.type(pred_dist.dtype))
             # pred_dist = (pred_dist.view(b, a, c // 4, 4).softmax(2) * self.proj.type(pred_dist.dtype).view(1, 1, -1, 1)).sum(2)
         return dist2bbox(pred_dist, anchor_points, xywh=False)
@@ -269,9 +291,13 @@ class v8DetectionLoss:
         """Calculate the sum of the loss for box, cls and dfl multiplied by batch size."""
         loss = torch.zeros(3, device=self.device)  # box, cls, dfl
         feats = preds[1] if isinstance(preds, tuple) else preds
+
+        # print(f'===> feats.shape:{feats}')
+        print(f'===> feats[0].shape:{feats[0].shape}')
+        print(f'===>self.no:{self.no}')
         pred_distri, pred_scores = torch.cat([xi.view(feats[0].shape[0], self.no, -1) for xi in feats], 2).split(
-            (self.reg_max * 8, self.nc), 1
-        )
+            (self.reg_max * 16, self.nc), 1
+        )       # 从*4 改为 *16
         pred_scores = pred_scores.permute(0, 2, 1).contiguous()
         pred_distri = pred_distri.permute(0, 2, 1).contiguous()
 
@@ -287,7 +313,7 @@ class v8DetectionLoss:
         mask_gt = gt_bboxes.sum(2, keepdim=True).gt_(0.0)
 
         # Pboxes
-        pred_bboxes = self.bbox_decode(anchor_points, pred_distri)  # xyxy, (b, h*w, 4) 修改为：x1y1x2y2x3y3x4y4
+        pred_bboxes = self.bbox_decode(anchor_points, pred_distri)  # xyxy, (b, h*w, 4) 修改为：x1y1x2y2x3y3x4y4x5y5x6y6x7y7x8y8
 
         _, target_bboxes, target_scores, fg_mask, _ = self.assigner(
             pred_scores.detach().sigmoid(),
