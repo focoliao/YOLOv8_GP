@@ -119,7 +119,7 @@ def verify_image_label(args):
             nf = 1  # label found
             with open(lb_file) as f:
                 lb = [x.split() for x in f.read().strip().splitlines() if len(x)]
-                if any(len(x) > 10 for x in lb) and (not keypoint):  # is segment
+                if any(len(x) > 18 for x in lb) and (not keypoint):  # is segment: 从6改成18
                     classes = np.array([x[0] for x in lb], dtype=np.float32)
                     segments = [np.array(x[1:], dtype=np.float32).reshape(-1, 2) for x in lb]  # (cls, xy1...)
                     lb = np.concatenate((classes.reshape(-1, 1), segments2boxes(segments)), 1)  # (cls, xywh)
@@ -130,7 +130,7 @@ def verify_image_label(args):
                     assert lb.shape[1] == (5 + nkpt * ndim), f"labels require {(5 + nkpt * ndim)} columns each"
                     points = lb[:, 5:].reshape(-1, ndim)[:, :2]
                 else:
-                    assert lb.shape[1] == 9, f"labels require 5 columns, {lb.shape[1]} columns detected"    # 4个点修改成8个殿后，5修改成9
+                    assert lb.shape[1] == 17, f"labels require 5 columns, {lb.shape[1]} columns detected"    # 4个点修改成16个殿后，5修改成17
                     points = lb[:, 1:]
                 assert points.max() <= 1, f"non-normalized or out of bounds coordinates {points[points > 1]}"
                 assert lb.min() >= 0, f"negative label values {lb[lb < 0]}"
@@ -158,7 +158,7 @@ def verify_image_label(args):
             if ndim == 2:
                 kpt_mask = np.where((keypoints[..., 0] < 0) | (keypoints[..., 1] < 0), 0.0, 1.0).astype(np.float32)
                 keypoints = np.concatenate([keypoints, kpt_mask[..., None]], axis=-1)  # (nl, nkpt, 3)
-        lb = lb[:, :9]  # 从只取前5列，修改成只取前9列
+        lb = lb[:, :17]  # 从只取前5列，修改成只取前17列
         return im_file, lb, shape, segments, keypoints, nm, nf, ne, nc, msg
     except Exception as e:
         nc = 1

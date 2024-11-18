@@ -3,9 +3,10 @@ __author__ = 'Foco Liao'
 
 #加载开源包
 import sys
+import os
 import yaml
 import torch
-from ultralytics import YOLO
+
 
 #加载本目录文件
 from misc_tools import read_txt_file, get_files_in_directory, check_and_make_dirs
@@ -14,8 +15,9 @@ from image_tools import predict_data_check
 
 
 #加载上级目录下的文件
-sys.path.append("..")   #切换目录位置
-
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))   #切换目录位置到上一级
+print(sys.path)
+from ultralytics import YOLO
 
 #配置文件
 config_file = "../configs/yolov8_gp.yaml"

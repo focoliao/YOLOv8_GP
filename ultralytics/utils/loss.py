@@ -253,14 +253,14 @@ class v8DetectionLoss:
                 n = matches.sum()
                 if n:
                     out[j, :n] = targets[matches, 1:]
-            out[..., 1:5] = xywh2xyxy(out[..., 1:5].mul_(scale_tensor))
+            out[..., 1:17] = xywh2xyxy(out[..., 1:17].mul_(scale_tensor))     # 4个点修改为16个点，1:5 --> 1:17
         return out
 
     def bbox_decode(self, anchor_points, pred_dist):
         """Decode predicted object bounding box coordinates from anchor points and distribution."""
         if self.use_dfl:
             b, a, c = pred_dist.shape  # batch, anchors, channels
-            pred_dist = pred_dist.view(b, a, 4, c // 8).softmax(3).matmul(self.proj.type(pred_dist.dtype))
+            pred_dist = pred_dist.view(b, a, 8, c // 8).softmax(3).matmul(self.proj.type(pred_dist.dtype))  # 修改从4个点变成8个点
             # pred_dist = pred_dist.view(b, a, c // 4, 4).transpose(2,3).softmax(3).matmul(self.proj.type(pred_dist.dtype))
             # pred_dist = (pred_dist.view(b, a, c // 4, 4).softmax(2) * self.proj.type(pred_dist.dtype).view(1, 1, -1, 1)).sum(2)
         return dist2bbox(pred_dist, anchor_points, xywh=False)
@@ -282,10 +282,8 @@ class v8DetectionLoss:
 
         # Targets
         targets = torch.cat((batch["batch_idx"].view(-1, 1), batch["cls"].view(-1, 1), batch["bboxes"]), 1)
-        print(f'---1> batch["bboxes"]:{batch["bboxes"]}')
-        targets = self.preprocess(targets.to(self.device), batch_size, scale_tensor=imgsz[[1, 0, 1, 0]])
-        print(f'---2> targets:{targets}')
-        gt_labels, gt_bboxes = targets.split((1, 8), 2)  # cls, xyxy  --> 修改为： cls, x1y1x2y2x3y3x4y4
+        targets = self.preprocess(targets.to(self.device), batch_size, scale_tensor=imgsz[[1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]])    # 修改了缩放乘积计算所需，4-->16个点
+        gt_labels, gt_bboxes = targets.split((1, 16), 2)  # cls, xyxy  --> 修改为： cls, x1y1x2y2x3y3x4y4x5y5x6y6x7y7x8y8
         mask_gt = gt_bboxes.sum(2, keepdim=True).gt_(0.0)
 
         # Pboxes

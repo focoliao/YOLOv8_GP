@@ -49,10 +49,12 @@ class Bboxes:
     def __init__(self, bboxes, format="xyxy") -> None:
         """Initializes the Bboxes class with bounding box data in a specified format."""
         assert format in _formats, f"Invalid bounding box format: {format}, format must be one of {_formats}"
+        print(f'--->1 bboxes:{bboxes}')
         bboxes = bboxes[None, :] if bboxes.ndim == 1 else bboxes
         assert bboxes.ndim == 2
-        assert bboxes.shape[1] == 8     # 点数从4修改成8
+        assert bboxes.shape[1] == 16     # 点数从4修改成16
         self.bboxes = bboxes
+        print(f'----> self.bboxes:{self.bboxes}')
         self.format = format
         # self.normalized = normalized
 

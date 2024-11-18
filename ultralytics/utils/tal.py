@@ -43,15 +43,15 @@ class TaskAlignedAssigner(nn.Module):
 
         Args:
             pd_scores (Tensor): shape(bs, num_total_anchors, num_classes)
-            pd_bboxes (Tensor): shape(bs, num_total_anchors, 4)
+            pd_bboxes (Tensor): shape(bs, num_total_anchors, 16)     # 4 --> 16
             anc_points (Tensor): shape(num_total_anchors, 2)
             gt_labels (Tensor): shape(bs, n_max_boxes, 1)
-            gt_bboxes (Tensor): shape(bs, n_max_boxes, 4)
+            gt_bboxes (Tensor): shape(bs, n_max_boxes, 16)   # 4 --> 16
             mask_gt (Tensor): shape(bs, n_max_boxes, 1)
 
         Returns:
             target_labels (Tensor): shape(bs, num_total_anchors)
-            target_bboxes (Tensor): shape(bs, num_total_anchors, 4)
+            target_bboxes (Tensor): shape(bs, num_total_anchors, 16) # 4 --> 16
             target_scores (Tensor): shape(bs, num_total_anchors, num_classes)
             fg_mask (Tensor): shape(bs, num_total_anchors)
             target_gt_idx (Tensor): shape(bs, num_total_anchors)
@@ -68,7 +68,6 @@ class TaskAlignedAssigner(nn.Module):
                 torch.zeros_like(pd_scores[..., 0]).to(device),
                 torch.zeros_like(pd_scores[..., 0]).to(device),
             )
-
         mask_pos, align_metric, overlaps = self.get_pos_mask(
             pd_scores, pd_bboxes, gt_labels, gt_bboxes, anc_points, mask_gt
         )
@@ -113,7 +112,12 @@ class TaskAlignedAssigner(nn.Module):
         bbox_scores[mask_gt] = pd_scores[ind[0], :, ind[1]][mask_gt]  # b, max_num_obj, h*w
 
         # (b, max_num_obj, 1, 4), (b, 1, h*w, 4)
+        print(f'--->pd_bboxes.shape:{pd_bboxes.shape}')
+        print(f'--->pd_bboxes:{pd_bboxes}')
+        print(f'--->gt_bboxes:{gt_bboxes}')
+        # 修改pd_boxes的计算逻辑
         pd_boxes = pd_bboxes.unsqueeze(1).expand(-1, self.n_max_boxes, -1, -1)[mask_gt]
+        # 修改gt_boxes的计算逻辑
         gt_boxes = gt_bboxes.unsqueeze(2).expand(-1, -1, na, -1)[mask_gt]
         overlaps[mask_gt] = self.iou_calculation(gt_boxes, pd_boxes)
 
@@ -214,7 +218,7 @@ class TaskAlignedAssigner(nn.Module):
 
         Args:
             xy_centers (torch.Tensor): Anchor center coordinates, shape (h*w, 2).
-            gt_bboxes (torch.Tensor): Ground truth bounding boxes, shape (b, n_boxes, 4).
+            gt_bboxes (torch.Tensor): Ground truth bounding boxes, shape (b, n_boxes, 16).   # 从4改成16
             eps (float, optional): Small value for numerical stability. Defaults to 1e-9.
 
         Returns:
@@ -226,8 +230,12 @@ class TaskAlignedAssigner(nn.Module):
         """
         n_anchors = xy_centers.shape[0]
         bs, n_boxes, _ = gt_bboxes.shape
-        lt, rb = gt_bboxes.view(-1, 1, 4).chunk(2, 2)  # left-top, right-bottom
-        bbox_deltas = torch.cat((xy_centers[None] - lt, rb - xy_centers[None]), dim=2).view(bs, n_boxes, n_anchors, -1)
+        # foco修改：将16个点分为8组，第三组为flt,第五组为erb，分别赋值给lt和rb
+        chunks_tmp = gt_bboxes.view(-1,1,16).chunk(8,dim=2)
+        flt = chunks_tmp[2] # 第三组为flt
+        erb = chunks_tmp[4] # 第三组为erb
+        # lt, rb = gt_bboxes.view(-1, 1, 16).chunk(2, 2)  # left-top, right-bottom 修改为：front-left-top, end-right-bottom
+        bbox_deltas = torch.cat((xy_centers[None] - flt, erb - xy_centers[None]), dim=2).view(bs, n_boxes, n_anchors, -1)
         # return (bbox_deltas.min(3)[0] > eps).to(gt_bboxes.dtype)
         return bbox_deltas.amin(3).gt_(eps)
 

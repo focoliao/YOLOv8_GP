@@ -51,7 +51,7 @@ class BaseDataset(Dataset):
         img_path,
         imgsz=640,
         cache=False,
-        augment=False,
+        augment=True,
         hyp=DEFAULT_CFG,
         prefix="",
         rect=False,
@@ -249,6 +249,7 @@ class BaseDataset(Dataset):
     def __getitem__(self, index):
         """Returns transformed label information for given index."""
         return self.transforms(self.get_image_and_label(index))
+        # return self.get_image_and_label(index)
 
     def get_image_and_label(self, index):
         """Get and return label information from the dataset."""

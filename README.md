@@ -13,7 +13,18 @@
 - tools: 各种工具
 
 ## 修改思路：
-### 不改变整体网络架构，修改head层，将ltrb修改成l(dx,dy),t(dx,dy),r(dx,dy),b(dx,dy)，同步修改损失函数及后处理。具体内容参见“执行步骤”
+### 不改变整体网络架构: 修改DataSet --> 
+1. 修改DataSet，使之能正确载入16个点(8对(x,y))数据，正确进行训练。
+- 输入label，设定：(前：front, 后：end)；(左：left,右：right)；(上：top，下：bottom)。点的顺序从车头左下-->车尾左上，具体顺序为：前左下(flb)->后左下(elb)->后右下(erb)->前右下(frb)->前左上(flt)->前右上(frt)->后右上(ert)->后左上(elt)。见下图：
+![alt text](image.png)
+- 按照上述设定，中心点为：(flt+erb)/2, 对应为第3和第5个点。
+2. 修改目标分配策略，主要是修改TaskAlignedAssigner
+- 修改anchor点在真值范围内的：修改select_candidates_in_gts
+- 
+2. 修改head层，
+- 将ltrb修改成flb, elb, erb, frb, flt, frt, ert, elt。每个点都包含(x,y)坐标。
+- (2)修改损失函数;
+- (3)修改后处理。具体内容参见“执行步骤”
 
 ## 执行步骤
 ### 1. 完成原始代码全链条，用以验证原始代码的可用性
@@ -64,7 +75,7 @@
 - 具体见ultralytics\data\dataset.py。逐条处理人如下
 - cache_labels：用于从文件中加载label并cache。实际在ultralytics\data\utils.py中的verify_image_label中,进行加载及处理逻辑。
 - 修改判别为segment的逻辑，从>6改成>10：verify_image_label
-- 修改xywh2xyxy，xyxy2xywh：变成直接输出，因为虽然我们让程序以为输入的为xywh，实际上，输入的是xyxy的8个点。ultralytics\utils\ops.py，ultralytics\data\augment.py _update_labels
+- 修改xywh2xyxy，xyxy2xywh：变成直接输出，因为虽然我们让程序以为输入的为xywh，实际上，输入的是xyxy的16个点。ultralytics\utils\ops.py，ultralytics\data\augment.py _update_labels
 - yolov8默认作了很多图像增强，在ultralytics\cfg\default.yaml中，将所有增强全都关闭：
   mosaic: 0.0          # Mosaic 关闭
   copy_paste: 0.0      # Copy-Paste 关闭
@@ -79,7 +90,12 @@
   hsv_v: 0.0           # 颜色增强关闭（亮度调整）
   flipud: 0.0          # 垂直翻转关闭
   fliplr: 0.0          # 水平翻转关闭
-
+- 以上方法并不直接，在ultralytics\data\build.py buiild_yolo_dataset中，直接将augment设置为false(原始为augment=mode==train)
+- 修改了loss计算时的缩放乘积问题。ultralytics\utils\loss.py __call__
+- 通过以上内容，DataLoader基本修改完毕
+#### 2.7 其他修改如计算公式等
+- 修改修改xywh2xyxy，xyxy2xywh：变成直接输出，因为虽然我们让程序以为输入的为xywh，实际上，输入的是xyxy的16个点。ultralytics\utils\ops.py xyxy2xywh xywh2xyxy
+- 修改select_candidates_in_gts: 修改lt(坐上)和rb(右下)计算逻辑。ultralytics/utils/tal.py TaskAlignedAssigner select_candidates_in_gts
 ### 3. 测试新代码
 #### 3.1 测试train的pipeline
 #### 3.2 测试predict

@@ -160,6 +160,7 @@ class YOLODataset(BaseDataset):
 
         # Check if the dataset is all boxes or all segments
         lengths = ((len(lb["cls"]), len(lb["bboxes"]), len(lb["segments"])) for lb in labels)
+        print(f'----> labels:{labels}')
         len_cls, len_boxes, len_segments = (sum(x) for x in zip(*lengths))
         if len_segments and len_boxes != len_segments:
             LOGGER.warning(
@@ -171,15 +172,18 @@ class YOLODataset(BaseDataset):
                 lb["segments"] = []
         if len_cls == 0:
             LOGGER.warning(f"WARNING ⚠️ No labels found in {cache_path}, training may not work correctly. {HELP_URL}")
+        print(f'=====>dataset:labels:{labels}')
         return labels
 
     def build_transforms(self, hyp=None):
         """Builds and appends transforms to the list."""
         if self.augment:
+            print(f'----> augment: True')
             hyp.mosaic = hyp.mosaic if self.augment and not self.rect else 0.0
             hyp.mixup = hyp.mixup if self.augment and not self.rect else 0.0
             transforms = v8_transforms(self, self.imgsz, hyp)
         else:
+            print(f'----> augment: False')
             transforms = Compose([LetterBox(new_shape=(self.imgsz, self.imgsz), scaleup=False)])
         transforms.append(
             Format(
