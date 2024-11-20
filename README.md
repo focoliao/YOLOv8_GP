@@ -1,4 +1,4 @@
-# foco_mono_gp
+# YOLOv8_GP
 利用yolov8网络结构，通过修改单目推理车辆4个接地点
 
 
