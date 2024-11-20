@@ -11,8 +11,8 @@ val: /Users/foco/Desktop/work/workspace/DataSets/YOLOv8GP/images/val/         # 
 
 names:
   0: car
-  1: bicycle
+  1: bus
   2: truck
-  3: bus
+  3: bicycle
 
 nc: 4

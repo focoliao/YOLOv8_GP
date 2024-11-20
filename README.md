@@ -12,21 +12,7 @@
 - engine: 方法核心引擎
 - tools: 各种工具
 
-## 修改思路：
-### 不改变整体网络架构: 修改DataSet --> 
-1. 修改DataSet，使之能正确载入16个点(8对(x,y))数据，正确进行训练。
-- 输入label，设定：(前：front, 后：end)；(左：left,右：right)；(上：top，下：bottom)。点的顺序从车头左下-->车尾左上，具体顺序为：前左下(flb)->后左下(elb)->后右下(erb)->前右下(frb)->前左上(flt)->前右上(frt)->后右上(ert)->后左上(elt)。见下图：
-![alt text](image.png)
-- 按照上述设定，计算lt和rb为：所有点中(x_min,y_max)为lt，(x_max, y_min)为rb。
-2. 修改目标分配策略，主要是修改TaskAlignedAssigner
-- 修改anchor点在真值范围内的：修改select_candidates_in_gts
-- 修改bbox_iou逻辑：ultralytics/utils/metrics.py bbox_iou
-3. 修改head层，
-- 将ltrb修改成flb, elb, erb, frb, flt, frt, ert, elt。每个点都包含(x,y)坐标。
-- (2)修改损失函数;
-- (3)修改后处理。具体内容参见“执行步骤”
-
-## 执行步骤
+## YOLOv8原始结构训练及预测
 ### 1. 完成原始代码全链条，用以验证原始代码的可用性
 #### 1.1 拉取文件、配置环境、安装框架及依赖等
 ##### 1.1.1 拉区文件及准备
@@ -55,36 +41,30 @@
 - 合并代码，删除本地开发分支，打V1.0 tag，推送到github，删除远程开发分支
 - 远程发布release V1.0
 
+## 修改思路：
+### 不改变整体网络架构: 修改DataSet --> 
+1. 修改DataSet，使之能正确载入16个点(8对(x,y))数据，正确进行训练。
+- 输入label，设定：(前：front, 后：end)；(左：left,右：right)；(上：top，下：bottom)。点的顺序从车头左下-->车尾左上，具体顺序为：前左下(flb)->后左下(elb)->后右下(erb)->前右下(frb)->前左上(flt)->前右上(frt)->后右上(ert)->后左上(elt)。见下图：
+![alt text](image.png)
+- 按照上述设定，计算lt和rb为：所有点中(x_min,y_max)为lt，(x_max, y_min)为rb。
+2. 修改目标分配策略，主要是修改TaskAlignedAssigner
+- 修改anchor点在真值范围内的：修改select_candidates_in_gts
+- 修改bbox_iou逻辑：ultralytics/utils/metrics.py bbox_iou
+3. 修改head层，
+- 将ltrb修改成flb, elb, erb, frb, flt, frt, ert, elt。每个点都包含(x,y)坐标。
+- (2)修改损失函数;
+- (3)修改后处理。具体内容参见“执行步骤”
+
+## 修改执行步骤
+### 1. 冻结0-21层：由于dfl层为天然冻结，所以0-21层都会冻结，22层中的dfl层会冻结
+- 冻结head层之前的参数，不参与初始化训练。具体见：ultralytics/cfg/default.yaml
+- freeze: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21]
 ### 2. 修改源代码
-#### 冻结YOLOv8的卷积层部分（backbone），只训练Head层
+#### 主体是修改Head层
 #### 2.0 修改前需要做的动作
 - 在根目录下，执行“pip install -e .” 用于保证修改源代码后，运行时会运行最新代码，而不是原始module中的代码。
 - 需要注意conda环境和pip环境，以免出现不起作用的情况。
-#### 2.1 修改head层:由于需要自定义输出框，需要修改head层的内容(为YOLOv8网络架构的第22层)
-- 在cv2层，修改输出，从4修改为16。具体见ultralytics/nn/modules/head.py
-- 对应reg_max部分，都从*4改成*16。具体见ultralytics/nn/modules/head.py
-#### 2.2 修改损失函数
-- 修改输出部分，从4修改为8。具体见ultralytics/utils/loss.py
-- 增加自定义loss。具体见ultralytics/utils/loss.py
-- 修改输出层为reg_max * 16，具体见ultralytics/utils/loss.py
-- 修改dist2bbox，具体见ultralytics/utils/tal.py dist2bbox
-- 原来使用BboxLoss, 返回loss_iou和loss_dfl。采用GPLoss函数，尽量覆盖BboxLoss的内容。
-
-#### 2.3 修改predict：由于修改了输出框，需要更改predict的处理逻辑和输出内容
-- 
-#### 2.4 修改后处理部分：
-- 我们相关的是检测，检测的后处理部分在:ultralytics/models/yolo/detect/predict.py DetectionPredictor postprocess
-- 修改非极大值抑制：ultralytics/utils/ops.py non_max_suppression
-- 主要原理是：从16个点中，找到边界xyxy，自定义函数, 还是使用xyxy的NMS，最后输出时，再把结果拼接回来
-#### 2.4 修改配置文件
-- 新建数据yaml文件，见foco/configs/yolov8_gp_data.yaml。classes聚焦在道路物体上，不需要原始那么多分类。并按照自己定义的分类设置数据
-- 新建训练yaml文件，见见foco/configs/yolov8_gp.yaml。
-#### 2.5 修改train：
-- 冻结head层之前的参数，不参与初始化训练。具体见：
-- 核心model代码在ultralytics/nn/tasks.py BaseModel
-- 修改val，代码在ultralytics/models/yolo/detect/val.py
-- 同时会修改很多计算公式，在metrics.py中 
-#### 2.6 修改DataLoader
+#### 2.1 修改DataLoader: 由于已经改变了DataSet的数据样式，需要修改Dataset和DataLoader
 - 具体见ultralytics\data\dataset.py 中的YOLODataset。逐条处理人如下
 - cache_labels：用于从文件中加载label并cache。实际在ultralytics\data\utils.py中的verify_image_label中,进行加载及处理逻辑。
 - 修改判别为segment的逻辑，从>6改成>10：verify_image_label
@@ -106,6 +86,30 @@
 - 以上方法并不直接，在ultralytics\data\build.py buiild_yolo_dataset中，直接将augment设置为false(原始为augment=mode==train)
 - 修改了loss计算时的缩放乘积问题。ultralytics\utils\loss.py __call__
 - 通过以上内容，DataLoader基本修改完毕
+#### 2.1 修改head层:由于需要自定义输出框，需要修改head层的内容(为YOLOv8网络架构的第22层)
+- 在cv2层，修改输出，从4修改为16。具体见ultralytics/nn/modules/head.py
+- 对应reg_max部分，都从*4改成*16。具体见ultralytics/nn/modules/head.py
+#### 2.2 修改损失函数
+- 修改输出部分，从4修改为8。具体见ultralytics/utils/loss.py
+- 增加自定义loss。具体见ultralytics/utils/loss.py
+- 修改输出层为reg_max * 16，具体见ultralytics/utils/loss.py
+- 修改dist2bbox，具体见ultralytics/utils/tal.py dist2bbox
+- 原来使用BboxLoss, 返回loss_iou和loss_dfl。采用GPLoss函数，尽量覆盖BboxLoss的内容。
+
+#### 2.3 修改predict：由于修改了输出框，需要更改predict的处理逻辑和输出内容
+- 
+#### 2.4 修改后处理部分：
+- 我们相关的是检测，检测的后处理部分在:ultralytics/models/yolo/detect/predict.py DetectionPredictor postprocess
+- 修改非极大值抑制：ultralytics/utils/ops.py non_max_suppression
+- 主要原理是：从16个点中，找到边界xyxy，自定义函数, 还是使用xyxy的NMS，最后输出时，再把结果拼接回来
+#### 2.4 修改配置文件
+- 新建数据yaml文件，见foco/configs/yolov8_gp_data.yaml。classes聚焦在道路物体上，不需要原始那么多分类。并按照自己定义的分类设置数据
+- 新建训练yaml文件，见见foco/configs/yolov8_gp.yaml。
+#### 2.5 修改train：
+- 核心model代码在ultralytics/nn/tasks.py BaseModel
+- 修改val，代码在ultralytics/models/yolo/detect/val.py
+- 同时会修改很多计算公式，在metrics.py中 
+
 #### 2.7 其他修改如计算公式等
 - 修改修改xywh2xyxy，xyxy2xywh：变成直接输出，因为虽然我们让程序以为输入的为xywh，实际上，输入的是xyxy的16个点。ultralytics\utils\ops.py xyxy2xywh xywh2xyxy
 - 修改select_candidates_in_gts: 修改lt(坐上)和rb(右下)计算逻辑。ultralytics/utils/tal.py TaskAlignedAssigner select_candidates_in_gts

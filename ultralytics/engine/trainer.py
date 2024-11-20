@@ -381,9 +381,7 @@ class BaseTrainer:
 
                 # Forward
                 with autocast(self.amp):
-                    test_img = batch['img']
                     batch = self.preprocess_batch(batch)
-                    test_img_after = batch['img']
                     self.loss, self.loss_items = self.model(batch)
                     if RANK != -1:
                         self.loss *= world_size
