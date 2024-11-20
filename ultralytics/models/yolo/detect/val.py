@@ -106,7 +106,7 @@ class DetectionValidator(BaseValidator):
         idx = batch["batch_idx"] == si
         cls = batch["cls"][idx].squeeze(-1)
         bbox = batch["bboxes"][idx]
-        print(f'==> bbox:{bbox}')
+        # print(f'==> bbox:{bbox}')
         ori_shape = batch["ori_shape"][si]
         imgsz = batch["img"].shape[2:]
         ratio_pad = batch["ratio_pad"][si]
@@ -225,9 +225,9 @@ class DetectionValidator(BaseValidator):
             The function does not return any value directly usable for metrics calculation. Instead, it provides an
             intermediate representation used for evaluating predictions against ground truth.
         """
-        print(f'==> detections.shape:{detections.shape}')
-        print(f'==> detections[:, :16]:{detections[:, :16]}')
-        print(f'==>gt_bboxes:{gt_bboxes}')
+        # print(f'==> detections.shape:{detections.shape}')
+        # print(f'==> detections[:, :16]:{detections[:, :16]}')
+        # print(f'==>gt_bboxes:{gt_bboxes}')
         iou = box_iou(gt_bboxes, detections[:, :16])     # 4 --> 16
         return self.match_predictions(detections[:, 17], gt_cls, iou)   # 5 --> 17
 

@@ -301,6 +301,18 @@ class Annotator:
                     # 绘制每个顶点
                     self.draw.text(quads[i], text=f'Vertex {i+1}')
                 self.draw.line(quads, fill='blue', width=1)  # 绘制多边形
+                # 绘制根据8个点的外接矩形
+                x_min = min(box[::2])
+                x_max = max(box[::2])
+                y_min = min(box[1::2])
+                y_max = max(box[1::2])
+                quads_rect = [
+                            (x_min, y_min),
+                            (x_max, y_min),
+                            (x_max, y_max),
+                            (x_min, y_max),
+                            ]
+                self.draw.polygon(quads_rect, outline='red', fill=None, width=1)
                 # foco ends
 
             if label:

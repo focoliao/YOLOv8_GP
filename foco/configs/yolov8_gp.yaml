@@ -6,4 +6,4 @@ author: 'Foco Liao'
 checkpoint: yolov8n.pt
 model_yaml: yolov8n.yaml
 data_yaml: ../configs/yolov8_gp_data.yaml
-epochs: 1
+epochs: 30
