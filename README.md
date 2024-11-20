@@ -72,14 +72,20 @@
 
 #### 2.3 修改predict：由于修改了输出框，需要更改predict的处理逻辑和输出内容
 - 
+#### 2.4 修改后处理部分：
+- 我们相关的是检测，检测的后处理部分在:ultralytics/models/yolo/detect/predict.py DetectionPredictor postprocess
+- 修改非极大值抑制：ultralytics/utils/ops.py non_max_suppression
+- 主要原理是：从16个点中，找到边界xyxy，自定义函数, 还是使用xyxy的NMS，最后输出时，再把结果拼接回来
 #### 2.4 修改配置文件
 - 新建数据yaml文件，见foco/configs/yolov8_gp_data.yaml。classes聚焦在道路物体上，不需要原始那么多分类。并按照自己定义的分类设置数据
 - 新建训练yaml文件，见见foco/configs/yolov8_gp.yaml。
 #### 2.5 修改train：
 - 冻结head层之前的参数，不参与初始化训练。具体见：
 - 核心model代码在ultralytics/nn/tasks.py BaseModel
+- 修改val，代码在ultralytics/models/yolo/detect/val.py
+- 同时会修改很多计算公式，在metrics.py中 
 #### 2.6 修改DataLoader
-- 具体见ultralytics\data\dataset.py。逐条处理人如下
+- 具体见ultralytics\data\dataset.py 中的YOLODataset。逐条处理人如下
 - cache_labels：用于从文件中加载label并cache。实际在ultralytics\data\utils.py中的verify_image_label中,进行加载及处理逻辑。
 - 修改判别为segment的逻辑，从>6改成>10：verify_image_label
 - 修改xywh2xyxy，xyxy2xywh：变成直接输出，因为虽然我们让程序以为输入的为xywh，实际上，输入的是xyxy的16个点。ultralytics\utils\ops.py，ultralytics\data\augment.py _update_labels
@@ -103,6 +109,7 @@
 #### 2.7 其他修改如计算公式等
 - 修改修改xywh2xyxy，xyxy2xywh：变成直接输出，因为虽然我们让程序以为输入的为xywh，实际上，输入的是xyxy的16个点。ultralytics\utils\ops.py xyxy2xywh xywh2xyxy
 - 修改select_candidates_in_gts: 修改lt(坐上)和rb(右下)计算逻辑。ultralytics/utils/tal.py TaskAlignedAssigner select_candidates_in_gts
+- 修改了画图的内容，在ultralytics/utils/plotting.py
 ### 3. 测试新代码
 #### 3.1 测试train的pipeline
 #### 3.2 测试predict

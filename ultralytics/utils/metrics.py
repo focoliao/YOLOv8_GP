@@ -49,6 +49,23 @@ def bbox_ioa(box1, box2, iou=False, eps=1e-7):
     return inter_area / (area + eps)
 
 
+def newbbox2xyxy(newbbox):
+    '''
+    foco增加：从16个点中，找到x_min,x_max,y_min,y_max，可认为是目标的xyxy
+    '''
+    # 将 16个点的box，转换成4个点的box：16个点分8组
+    xys_tmp = newbbox.reshape(*newbbox.shape[:-1], 8, 2)   # 16个点分为8组
+    # 提取每组的第一个元素为 x 坐标，第二个元素为 y 坐标
+    x_coords = xys_tmp[...,0]  # 每组的 x 坐标
+    y_coords = xys_tmp[...,1]  # 每组的 y 坐标
+    # 计算 x 坐标和 y 坐标的最小值和最大值
+    x_min = x_coords.min(dim=-1)[0]  # 最小值 x1
+    x_max = x_coords.max(dim=-1)[0]  # 最大值 x2
+    y_min = y_coords.min(dim=-1)[0]  # 最小值 y1
+    y_max = y_coords.max(dim=-1)[0]  # 最大值 y2
+    newxyxy = torch.stack((x_min,y_min,x_max,y_max), dim=-1)
+    return newxyxy
+
 def box_iou(box1, box2, eps=1e-7):
     """
     Calculate intersection-over-union (IoU) of boxes. Both sets of boxes are expected to be in (x1, y1, x2, y2) format.
@@ -64,7 +81,12 @@ def box_iou(box1, box2, eps=1e-7):
     """
     # NOTE: Need .float() to get accurate iou values
     # inter(N,M) = (rb(N,M,2) - lt(N,M,2)).clamp(0).prod(2)
-    (a1, a2), (b1, b2) = box1.float().unsqueeze(1).chunk(2, 2), box2.float().unsqueeze(0).chunk(2, 2)
+    '''
+    foco修改：通过16个点转换成xyxy，然后计算
+    '''
+    new_box1 = newbbox2xyxy(box1)
+    new_box2 = newbbox2xyxy(box2)
+    (a1, a2), (b1, b2) = new_box1.float().unsqueeze(1).chunk(2, 2), new_box2.float().unsqueeze(0).chunk(2, 2)
     inter = (torch.min(a2, b2) - torch.max(a1, b1)).clamp_(0).prod(2)
 
     # IoU = inter / (area1 + area2 - inter)
@@ -73,7 +95,7 @@ def box_iou(box1, box2, eps=1e-7):
 
 def bbox_iou(box1, box2, xywh=True, GIoU=False, DIoU=False, CIoU=False, eps=1e-7):
     """
-    Calculate Intersection over Union (IoU) of box1(1, 4) to box2(n, 4).
+    Calculate Intersection over Union (IoU) of box1(1, 16) to box2(n, 16).
 
     Args:
         box1 (torch.Tensor): A tensor representing a single bounding box with shape (1, 4).
@@ -102,10 +124,10 @@ def bbox_iou(box1, box2, xywh=True, GIoU=False, DIoU=False, CIoU=False, eps=1e-7
         w1, h1 = b1_x2 - b1_x1, b1_y2 - b1_y1 + eps
         w2, h2 = b2_x2 - b2_x1, b2_y2 - b2_y1 + eps
     '''
-    print(f'--->box1:{box1}')
-    print(f'--->box1.shape:{box1.shape}')
-    print(f'--->box2:{box2}')
-    print(f'--->box2.shape:{box2.shape}')
+    # print(f'--->box1:{box1}')
+    # print(f'--->metrics, bbox_iou box1.shape:{box1.shape}')
+    # print(f'--->box2:{box2}')
+    # print(f'--->metrics, bbox_iou box2.shape:{box2.shape}')
     # 将 16个点的box，转换成4个点的box：16个点分8组，
     chunks_tmp = box1.view(-1,8,2)
     # 提取每组的第一个元素为 x 坐标，第二个元素为 y 坐标
@@ -374,14 +396,14 @@ class ConfusionMatrix:
                 self.matrix[self.nc, gc] += 1  # background FN
             return
 
-        detections = detections[detections[:, 4] > self.conf]
+        detections = detections[detections[:, 16] > self.conf]   # 4 --> 16
         gt_classes = gt_cls.int()
-        detection_classes = detections[:, 5].int()
+        detection_classes = detections[:, 17].int()  # 5 --> 17
         is_obb = detections.shape[1] == 7 and gt_bboxes.shape[1] == 5  # with additional `angle` dimension
         iou = (
-            batch_probiou(gt_bboxes, torch.cat([detections[:, :4], detections[:, -1:]], dim=-1))
+            batch_probiou(gt_bboxes, torch.cat([detections[:, :16], detections[:, -1:]], dim=-1))   # 4 --> 16
             if is_obb
-            else box_iou(gt_bboxes, detections[:, :4])
+            else box_iou(gt_bboxes, detections[:, :16])     # 4 --> 16
         )
 
         x = torch.where(iou > self.iou_thres)

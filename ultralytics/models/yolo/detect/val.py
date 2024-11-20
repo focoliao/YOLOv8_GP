@@ -106,11 +106,12 @@ class DetectionValidator(BaseValidator):
         idx = batch["batch_idx"] == si
         cls = batch["cls"][idx].squeeze(-1)
         bbox = batch["bboxes"][idx]
+        print(f'==> bbox:{bbox}')
         ori_shape = batch["ori_shape"][si]
         imgsz = batch["img"].shape[2:]
         ratio_pad = batch["ratio_pad"][si]
         if len(cls):
-            bbox = ops.xywh2xyxy(bbox) * torch.tensor(imgsz, device=self.device)[[1, 0, 1, 0]]  # target boxes
+            bbox = ops.xywh2xyxy(bbox) * torch.tensor(imgsz, device=self.device)[[1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]]  # target boxes 从4个点修改为8个点
             ops.scale_boxes(imgsz, bbox, ori_shape, ratio_pad=ratio_pad)  # native-space labels
         return {"cls": cls, "bbox": bbox, "ori_shape": ori_shape, "imgsz": imgsz, "ratio_pad": ratio_pad}
 
@@ -224,8 +225,11 @@ class DetectionValidator(BaseValidator):
             The function does not return any value directly usable for metrics calculation. Instead, it provides an
             intermediate representation used for evaluating predictions against ground truth.
         """
-        iou = box_iou(gt_bboxes, detections[:, :4])
-        return self.match_predictions(detections[:, 5], gt_cls, iou)
+        print(f'==> detections.shape:{detections.shape}')
+        print(f'==> detections[:, :16]:{detections[:, :16]}')
+        print(f'==>gt_bboxes:{gt_bboxes}')
+        iou = box_iou(gt_bboxes, detections[:, :16])     # 4 --> 16
+        return self.match_predictions(detections[:, 17], gt_cls, iou)   # 5 --> 17
 
     def build_dataset(self, img_path, mode="val", batch=None):
         """

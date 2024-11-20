@@ -241,9 +241,7 @@ class v8DetectionLoss:
         """Initializes v8DetectionLoss with the model, defining model-related properties and BCE loss function."""
         device = next(model.parameters()).device  # get model device
         h = model.args  # hyperparameters
-        print(f'--->before m.i:{model.model[-1].i}')
         m = model.model[-1]  # Detect() module
-        print(f'---> m.i:{m.i}')
         self.bce = nn.BCEWithLogitsLoss(reduction="none")
         self.hyp = h
         self.stride = m.stride  # model strides
@@ -279,7 +277,6 @@ class v8DetectionLoss:
 
     def bbox_decode(self, anchor_points, pred_dist):
         """Decode predicted object bounding box coordinates from anchor points and distribution."""
-        print(f'===>self.use_dfl:{self.use_dfl}')
         if self.use_dfl:
             b, a, c = pred_dist.shape  # batch, anchors, channels
             pred_dist = pred_dist.view(b, a, 16, c // 16).softmax(3).matmul(self.proj.type(pred_dist.dtype))  # 修改从4个点变成16个点
@@ -293,8 +290,8 @@ class v8DetectionLoss:
         feats = preds[1] if isinstance(preds, tuple) else preds
 
         # print(f'===> feats.shape:{feats}')
-        print(f'===> feats[0].shape:{feats[0].shape}')
-        print(f'===>self.no:{self.no}')
+        # print(f'===> feats[0].shape:{feats[0].shape}')
+        # print(f'===>self.no:{self.no}')
         pred_distri, pred_scores = torch.cat([xi.view(feats[0].shape[0], self.no, -1) for xi in feats], 2).split(
             (self.reg_max * 16, self.nc), 1
         )       # 从*4 改为 *16
@@ -336,9 +333,6 @@ class v8DetectionLoss:
             loss[0], loss[2] = self.bbox_loss(
                 pred_distri, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask
             )
-        print(f'self.hyp.box:{self.hyp.box}')
-        print(f'self.hyp.cls:{self.hyp.cls}')
-        print(f'self.hyp.dfl:{self.hyp.dfl}')
         loss[0] *= self.hyp.box  # box gain
         loss[1] *= self.hyp.cls  # cls gain
         loss[2] *= self.hyp.dfl  # dfl gain

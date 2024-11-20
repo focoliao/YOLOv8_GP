@@ -291,7 +291,18 @@ class Annotator:
                 self.draw.polygon([tuple(b) for b in box], width=self.lw, outline=color)  # PIL requires tuple box
             else:
                 p1 = (box[0], box[1])
-                self.draw.rectangle(box, width=self.lw, outline=color)  # box
+                # self.draw.rectangle(box, width=self.lw, outline=color)  # box 更换成画8个点
+                '''
+                foco edited
+                '''
+                # 遍历原始多边形列表，绘制每个多边形
+                quads = list(zip(box[::2], box[1::2]))
+                for i in range(len(quads)):
+                    # 绘制每个顶点
+                    self.draw.text(quads[i], text=f'Vertex {i+1}')
+                self.draw.line(quads, fill='blue', width=1)  # 绘制多边形
+                # foco ends
+
             if label:
                 w, h = self.font.getsize(label)  # text width, height
                 outside = p1[1] >= h  # label fits outside box
@@ -1006,13 +1017,13 @@ def plot_images(
                 boxes = bboxes[idx]
                 conf = confs[idx] if confs is not None else None  # check for confidence presence (label vs pred)
                 if len(boxes):
-                    if boxes[:, :4].max() <= 1.1:  # if normalized with tolerance 0.1
-                        boxes[..., [0, 2]] *= w  # scale to pixels
-                        boxes[..., [1, 3]] *= h
+                    if boxes[:, :16].max() <= 1.1:  # if normalized with tolerance 0.1 @foco 4-->16
+                        boxes[..., [0, 2, 4, 6, 8, 10, 12, 14]] *= w  # scale to pixels @foco 4-->16
+                        boxes[..., [1, 3, 5, 7, 9, 11, 13, 15]] *= h  # @foco 4-->16
                     elif scale < 1:  # absolute coords need scale if image scales
-                        boxes[..., :4] *= scale
-                boxes[..., 0] += x
-                boxes[..., 1] += y
+                        boxes[..., :16] *= scale    # @foco 4-->16
+                boxes[..., [0, 2, 4, 6, 8, 10, 12, 14]] += x  #  根据分图进行位移，4 --> 16
+                boxes[..., [1, 3, 5, 7, 9, 11, 13, 15]] += y  #  根据分图进行位移，4 --> 16
                 is_obb = boxes.shape[-1] == 5  # xywhr
                 boxes = ops.xywhr2xyxyxyxy(boxes) if is_obb else ops.xywh2xyxy(boxes)
                 for j, box in enumerate(boxes.astype(np.int64).tolist()):
@@ -1232,7 +1243,7 @@ def output_to_target(output, max_det=300):
     """Convert model output to target format [batch_id, class_id, x, y, w, h, conf] for plotting."""
     targets = []
     for i, o in enumerate(output):
-        box, conf, cls = o[:max_det, :6].cpu().split((4, 1, 1), 1)
+        box, conf, cls = o[:max_det, :18].cpu().split((16, 1, 1), 1)  # 4 --> 16
         j = torch.full((conf.shape[0], 1), i)
         targets.append(torch.cat((j, cls, ops.xyxy2xywh(box), conf), 1))
     targets = torch.cat(targets, 0).numpy()

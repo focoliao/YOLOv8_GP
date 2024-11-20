@@ -22,6 +22,8 @@ from ultralytics import YOLO
 #配置文件
 config_file = "../configs/yolov8_gp.yaml"
 
+torch.autograd.set_detect_anomaly(True)
+
 def main():
     #加载配置信息
     with open(config_file,'r') as file:
@@ -39,7 +41,6 @@ def main():
         print("- GPU是否可用：否")
         print("- 使用的设备：CPU")
 
-    print(f"---YOLO.__module__:{YOLO.__module__}")
     # 加载模型
     model = YOLO(config.model_yaml).load(config.checkpoint).to(device)
 

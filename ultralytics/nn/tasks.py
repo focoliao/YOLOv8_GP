@@ -136,8 +136,8 @@ class BaseModel(nn.Module):
         Returns:
             (torch.Tensor): The last output of the model.
         """
-        # print(f'--->input x:{x}')
-        print(f'--->input x[0].shape:{x[0].shape}')
+        # print(f'--->BaseModel _predict_once input len(x):{len(x)}')
+        # print(f'--->BaseModel _predict_once input x[0].shape:{x[0].shape}')
         y, dt, embeddings = [], [], []  # outputs
         for m in self.model:
             if m.f != -1:  # if not from previous layer
@@ -145,20 +145,26 @@ class BaseModel(nn.Module):
             if profile:
                 self._profile_one_layer(m, x, dt)
             x = m(x)  # run
-            
+            '''
+            # foco 调试：打印网络情况
             # 如果x是list，打印每个tensor的形状
             if isinstance(x, list):
-                print(f"000-Layer {m.i}")
+                print(f"-Layer {m.i}")
                 for idx, xi in enumerate(x):
-                    print(f"000-Layer {m.i}, output {idx} shape: {xi.shape}")
+                    print(f"--Layer {m.i}, output {idx} shape: {xi.shape}")
             elif isinstance(x, tuple):
-                print(f"000-Layer {m.i}")
+                print(f"-Layer {m.i}")
                 for idx, xi in enumerate(x):
-                    print(f"000-Layer {m.i}, output {idx} shape: {xi.shape}")
+                    if isinstance(xi, list):
+                        print(f"---Layer {m.i}")
+                        for idy, xj in enumerate(xi):
+                            print(f"---Layer {m.i}, output {idy} shape: {xj.shape}")
+                    else:
+                        print(f"--Layer {m.i}, output {idx} shape: {xi.shape}")
             else:
                 # 否则直接打印x的形状
-                print(f"000-Layer {m.i} output shape: {x.shape}")
-
+                print(f"-Layer {m.i} output shape: {x.shape}")
+            '''
             y.append(x if m.i in self.save else None)  # save output
             if visualize:
                 feature_visualization(x, m.type, m.i, save_dir=visualize)
@@ -166,8 +172,8 @@ class BaseModel(nn.Module):
                 embeddings.append(nn.functional.adaptive_avg_pool2d(x, (1, 1)).squeeze(-1).squeeze(-1))  # flatten
                 if m.i == max(embed):
                     return torch.unbind(torch.cat(embeddings, 1), dim=0)
-        # print(f'--->output x:{x}')
-        print(f'--->output x[0].shape:{x[0].shape}')
+        # print(f'--->BaseModel _predict_once output len(x):{len(x)}')
+        # print(f'--->BaseModel _predict_once output x[0].shape:{x[0].shape}')
         return x
 
     def _predict_augment(self, x):

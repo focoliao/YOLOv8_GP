@@ -112,14 +112,11 @@ class TaskAlignedAssigner(nn.Module):
         bbox_scores[mask_gt] = pd_scores[ind[0], :, ind[1]][mask_gt]  # b, max_num_obj, h*w
 
         # (b, max_num_obj, 1, 4), (b, 1, h*w, 4)
-        print(f'--->pd_bboxes.shape:{pd_bboxes.shape}')
-        print(f'--->pd_bboxes:{pd_bboxes}')
-        print(f'--->gt_bboxes:{gt_bboxes}')
+        # print(f'--->tal get_box_metrics pd_bboxes:{pd_bboxes}')
         # 修改pd_boxes的计算逻辑: 16个点中，x的最小值，x的最大值，y的最小值，y的最大值组成xyxy格式的pd_boxes
         pd_boxes = pd_bboxes.unsqueeze(1).expand(-1, self.n_max_boxes, -1, -1)[mask_gt]
         # 修改gt_boxes的计算逻辑：16个点中，x的最小值，x的最大值，y的最小值，y的最大值组成xyxy格式的pd_boxes
         gt_boxes = gt_bboxes.unsqueeze(2).expand(-1, -1, na, -1)[mask_gt]
-        print(f'--->gt_boxes:{gt_boxes}')
         overlaps[mask_gt] = self.iou_calculation(gt_boxes, pd_boxes)
 
         align_metric = bbox_scores.pow(self.alpha) * overlaps.pow(self.beta)

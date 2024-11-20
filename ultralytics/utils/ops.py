@@ -207,6 +207,9 @@ def non_max_suppression(
             shape (num_boxes, 6 + num_masks) containing the kept boxes, with columns
             (x1, y1, x2, y2, confidence, class, mask1, mask2, ...).
     """
+    '''
+    foco做了大量修改
+    '''
     import torchvision  # scope for faster 'import ultralytics'
 
     # Checks
@@ -224,10 +227,10 @@ def non_max_suppression(
         return output
 
     bs = prediction.shape[0]  # batch size (BCN, i.e. 1,84,6300)
-    nc = nc or (prediction.shape[1] - 4)  # number of classes
-    nm = prediction.shape[1] - nc - 4  # number of masks
-    mi = 4 + nc  # mask start index
-    xc = prediction[:, 4:mi].amax(1) > conf_thres  # candidates
+    nc = nc or (prediction.shape[1] - 16)  # number of classes  修改4->16
+    nm = prediction.shape[1] - nc - 16  # number of masks  修改4->16
+    mi = 16 + nc  # mask start index  修改4->16
+    xc = prediction[:, 16:mi].amax(1) > conf_thres  # candidates   修改4->16
 
     # Settings
     # min_wh = 2  # (pixels) minimum box width and height
@@ -235,60 +238,61 @@ def non_max_suppression(
     multi_label &= nc > 1  # multiple labels per box (adds 0.5ms/img)
 
     prediction = prediction.transpose(-1, -2)  # shape(1,84,6300) to shape(1,6300,84)
-    if not rotated:
+    if not rotated:     
+        new_xyxy = newbbox2xyxy(prediction[..., :16])  # 提取 xyxy，返回 [batch_size, num_predictions, 4]
+        prediction = torch.cat((new_xyxy,prediction[..., 16:],prediction[..., :16]), dim=-1)    # 将new_xyxy添加到前4列，将前16列放到最后，处理完成后再调回来
+        '''
         if in_place:
-            prediction[..., :4] = xywh2xyxy(prediction[..., :4])  # xywh to xyxy
+            prediction[..., :4] = newbbox2xyxy(prediction[..., :16])  # xywh to xyxy    从4修改为16，从16个点中提取xyxy
         else:
-            prediction = torch.cat((xywh2xyxy(prediction[..., :4]), prediction[..., 4:]), dim=-1)  # xywh to xyxy
-
+            prediction = torch.cat((newbbox2xyxy(prediction[..., :16]), prediction[..., 4:]), dim=-1)  # xywh to xyxy 从4修改为16，从16个点中提取xyxy
+        '''
+            
     t = time.time()
-    output = [torch.zeros((0, 6 + nm), device=prediction.device)] * bs
+    output = [torch.zeros((0, 18 + nm), device=prediction.device)] * bs      # 这个地方6修改: xyxy,conf,cls ==> 16,conf,cls
     for xi, x in enumerate(prediction):  # image index, image inference
         # Apply constraints
         # x[((x[:, 2:4] < min_wh) | (x[:, 2:4] > max_wh)).any(1), 4] = 0  # width-height
         x = x[xc[xi]]  # confidence
 
-        # Cat apriori labels if autolabelling
+        # Cat apriori labels if autolabelling       # 这一段好像不需要
         if labels and len(labels[xi]) and not rotated:
             lb = labels[xi]
-            v = torch.zeros((len(lb), nc + nm + 4), device=x.device)
-            v[:, :4] = xywh2xyxy(lb[:, 1:5])  # box
-            v[range(len(lb)), lb[:, 0].long() + 4] = 1.0  # cls
+            v = torch.zeros((len(lb), nc + nm + 4), device=x.device)    # 4 --> 16
+            v[:, :4] = xywh2xyxy(lb[:, 1:5])  # box     这个地方必然要改
+            v[range(len(lb)), lb[:, 0].long() + 16] = 1.0  # cls    4 --> 16
             x = torch.cat((x, v), 0)
 
         # If none remain process next image
         if not x.shape[0]:
             continue
 
-        # Detections matrix nx6 (xyxy, conf, cls)
-        box, cls, mask = x.split((4, nc, nm), 1)
+        # Detections matrix nx6 (xyxy, conf, cls)   16, conf, cls
+        box, cls, mask, ori_16 = x.split((4, nc, nm, 16), 1) # 按照调整后的最后一维进行拆分
 
         if multi_label:
             i, j = torch.where(cls > conf_thres)
-            x = torch.cat((box[i], x[i, 4 + j, None], j[:, None].float(), mask[i]), 1)
+            x = torch.cat((box[i], x[i, 4 + j, None], j[:, None].float(), mask[i], ori_16[i]), 1)  # 保持原样，没有修改
         else:  # best class only
             conf, j = cls.max(1, keepdim=True)
-            x = torch.cat((box, conf, j.float(), mask), 1)[conf.view(-1) > conf_thres]
-
+            x = torch.cat((box, conf, j.float(), mask, ori_16), 1)[conf.view(-1) > conf_thres]
         # Filter by class
         if classes is not None:
-            x = x[(x[:, 5:6] == classes).any(1)]
-
+            x = x[(x[:, 5:6] == classes).any(1)]      # 4 --> 16 保持原样，没有修改
         # Check shape
         n = x.shape[0]  # number of boxes
         if not n:  # no boxes
             continue
         if n > max_nms:  # excess boxes
             x = x[x[:, 4].argsort(descending=True)[:max_nms]]  # sort by confidence and remove excess boxes
-
         # Batched NMS
-        c = x[:, 5:6] * (0 if agnostic else max_wh)  # classes
-        scores = x[:, 4]  # scores
+        c = x[:, 5:6] * (0 if agnostic else max_wh)  # classes  4 --> 16 保持原样，没有修改
+        scores = x[:, 4]  # scores     # 4 --> 16 保持原样，没有修改
         if rotated:
             boxes = torch.cat((x[:, :2] + c, x[:, 2:4], x[:, -1:]), dim=-1)  # xywhr
             i = nms_rotated(boxes, scores, iou_thres)
         else:
-            boxes = x[:, :4] + c  # boxes (offset by class)
+            boxes = x[:, :4] + c  # boxes (offset by class)    4 --> 16 保持原样，没有修改
             i = torchvision.ops.nms(boxes, scores, iou_thres)  # NMS
         i = i[:max_det]  # limit detections
 
@@ -303,13 +307,31 @@ def non_max_suppression(
         #     redundant = True  # require redundant detections
         #     if redundant:
         #         i = i[iou.sum(1) > 1]  # require redundancy
-
-        output[xi] = x[i]
+        output_tmp = x[i]
+        output[xi] = torch.cat((output_tmp[...,-16:],output_tmp[...,4:6]),dim=-1)    # 重新组合
+        
         if (time.time() - t) > time_limit:
             LOGGER.warning(f"WARNING ⚠️ NMS time limit {time_limit:.3f}s exceeded")
             break  # time limit exceeded
-
     return output
+
+
+def newbbox2xyxy(newbbox):
+    '''
+    foco增加：从16个点中，找到x_min,x_max,y_min,y_max，可认为是目标的xyxy
+    '''
+    # 将 16个点的box，转换成4个点的box：16个点分8组
+    xys_tmp = newbbox.reshape(*newbbox.shape[:-1], 8, 2)   # 16个点分为8组
+    # 提取每组的第一个元素为 x 坐标，第二个元素为 y 坐标
+    x_coords = xys_tmp[...,0]  # 每组的 x 坐标
+    y_coords = xys_tmp[...,1]  # 每组的 y 坐标
+    # 计算 x 坐标和 y 坐标的最小值和最大值
+    x_min = x_coords.min(dim=-1)[0]  # 最小值 x1
+    x_max = x_coords.max(dim=-1)[0]  # 最大值 x2
+    y_min = y_coords.min(dim=-1)[0]  # 最小值 y1
+    y_max = y_coords.max(dim=-1)[0]  # 最大值 y2
+    newxyxy = torch.stack((x_min,y_min,x_max,y_max), dim=-1)
+    return newxyxy
 
 
 def clip_boxes(boxes, shape):
