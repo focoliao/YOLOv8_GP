@@ -99,6 +99,8 @@
 #### 2.3 修改predict：由于修改了输出框，需要更改predict的处理逻辑和输出内容
 - 最终代码为：foco/tolls/yolov8_gp_predict.py
 - 配置文件为：foco/configs/yolov8_gp_predict.yaml
+- 修改了results，在ultralytics/engine/results.py中，包括Boxes
+- 修改了predictor，在ultralytics/models/yolo/detect/predict.py中的postprocess
 #### 2.4 修改后处理部分：
 - 我们相关的是检测，检测的后处理部分在:ultralytics/models/yolo/detect/predict.py DetectionPredictor postprocess
 - 修改非极大值抑制：ultralytics/utils/ops.py non_max_suppression
@@ -109,7 +111,8 @@
 #### 2.5 修改train：
 - 核心model代码在ultralytics/nn/tasks.py BaseModel
 - 修改val，代码在ultralytics/models/yolo/detect/val.py
-- 同时会修改很多计算公式，在metrics.py中 
+- 同时会修改很多计算公式，在metrics.py中
+- 修改DetectionValidator，在ultralytics/models/yolo/detect/val.py中
 
 #### 2.7 其他修改如计算公式等
 - 修改修改xywh2xyxy，xyxy2xywh：变成直接输出，因为虽然我们让程序以为输入的为xywh，实际上，输入的是xyxy的16个点。ultralytics\utils\ops.py xyxy2xywh xywh2xyxy

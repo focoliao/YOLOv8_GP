@@ -12,56 +12,6 @@ import re
 from misc_tools import dict_to_namespace, get_files_in_directory, copy_file, save_to_txt_file, read_txt_file, save_to_csv_file, delete_file
 
 config_file = '../configs/data_preparation_yolov8_gp_config.yaml'
-    
-
-#根据原始数据内容及YOLOv8 GP标注要求，转换标注数据，并保存
-def convert_annotation_YOLOv8_GP_3DBOX(source_dir, target_dir, file_name, image_size):
-    #检查源目录是否存在，如果没有则报错返回
-    if not os.path.exists(source_dir):
-        raise ValueError(f"The directory {source_dir} does not exists.")
-        return
-    if not os.path.isdir(source_dir):
-        raise ValueError(f"The path {source_dir} is not a direcotry.")
-        return
-    
-    #截取“***.png”中的***
-    rematch = re.match(r'^(.*)\.png$', file_name).group(1)
-
-    #读取源label
-    source_file_path = source_dir + '/' + rematch + '.txt'
-    
-    content_lines = read_txt_file(source_file_path)
-    content_converted = []
-    labels_converted = []
-    for line in content_lines:
-        single_line_converted = []
-        single_label_converted = []
-        #通过正则表达式，提取一行中的内容，成为list
-        single_line = re.findall(r'\b[a-zA-Z]+(?:_[a-zA-Z]+)?\b|-?\d+\.?\d*', line)
-        for i in range(len(single_line)):
-            if i == 0:      #类型：default --> 0:car; default_bus --> 1:bus
-                if(single_line[i] == "0"):
-                    single_line_converted.append('0')
-                elif(single_line[i] == "1"):
-                    single_line_converted.append('1')
-            elif i %2 == 1:
-                #检查数据归一情况
-                if(float(single_line[i])/image_size[0] > 1):
-                    print(f"发现大于图片X-MAX的数，在 {file_name}")
-                single_line_converted.append(str(float(single_line[i])/image_size[0])) 
-                single_label_converted.append(float(single_line[i])/image_size[0])
-            else:
-                #检查数据归一情况
-                if(float(single_line[i])/image_size[1] > 1):
-                    print(f"发现大于图片Y-MAX的数，在 {file_name}")
-                single_line_converted.append(str(1-float(single_line[i])/image_size[1]))
-                single_label_converted.append(1-float(single_line[i])/image_size[1]) 
-        content_converted.append(' '.join(single_line_converted))
-        labels_converted.append(single_label_converted)
-
-    save_to_txt_file(target_dir, rematch + '.txt', content_converted)
-    return labels_converted
-
 
 #根据原始数据内容及YOLOv8 GP标注要求，转换标注数据，并保存
 def convert_annotation_YOLOv8_GP_3DBox(source_dir, target_dir, file_name, image_size):

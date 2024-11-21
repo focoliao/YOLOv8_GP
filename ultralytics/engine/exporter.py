@@ -1076,7 +1076,7 @@ class Exporter:
             out = model.predict({"image": img})
             out0_shape = out[out0.name].shape  # (3780, 80)
             out1_shape = out[out1.name].shape  # (3780, 4)
-        else:  # linux and windows can not run model.predict(), get sizes from PyTorch model output y
+        else:  # linux and windows can not run model.predict(), get sizes from PyTorch model output y # @foco ???
             out0_shape = self.output_shape[2], self.output_shape[1] - 4  # (3780, 80)
             out1_shape = self.output_shape[2], 4  # (3780, 4)
 

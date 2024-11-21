@@ -119,7 +119,7 @@ class DetectionValidator(BaseValidator):
         """Prepares a batch of images and annotations for validation."""
         predn = pred.clone()
         ops.scale_boxes(
-            pbatch["imgsz"], predn[:, :4], pbatch["ori_shape"], ratio_pad=pbatch["ratio_pad"]
+            pbatch["imgsz"], predn[:, :16], pbatch["ori_shape"], ratio_pad=pbatch["ratio_pad"]  # 4 --> 16
         )  # native-space pred
         return predn
 
@@ -148,10 +148,10 @@ class DetectionValidator(BaseValidator):
 
             # Predictions
             if self.args.single_cls:
-                pred[:, 5] = 0
+                pred[:, 17] = 0      # 4 --> 16
             predn = self._prepare_pred(pred, pbatch)
-            stat["conf"] = predn[:, 4]
-            stat["pred_cls"] = predn[:, 5]
+            stat["conf"] = predn[:, 16]  # 4 --> 16
+            stat["pred_cls"] = predn[:, 17] # 4 --> 16
 
             # Evaluate
             if nl:

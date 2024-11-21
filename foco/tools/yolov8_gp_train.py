@@ -46,7 +46,7 @@ def main():
     model = YOLO(config.model_yaml).load(config.checkpoint).to(device)
 
     # 训练
-    model.train(data=config.data_yaml, epochs=config.epochs)
+    model.train(data=config.data_yaml, epochs=config.epochs, amp=False)
 
 
 if __name__ == '__main__':

@@ -279,7 +279,7 @@ def non_max_suppression(
         if labels and len(labels[xi]) and not rotated:
             lb = labels[xi]
             v = torch.zeros((len(lb), nc + nm + 4), device=x.device)    # 4 --> 16
-            v[:, :4] = xywh2xyxy(lb[:, 1:5])  # box     这个地方必然要改
+            v[:, :4] = xywh2xyxy(lb[:, 1:5])  # box     这个地方必然要改 ???
             v[range(len(lb)), lb[:, 0].long() + 16] = 1.0  # cls    4 --> 16
             x = torch.cat((x, v), 0)
 
@@ -460,7 +460,7 @@ def xyxy2xywh(x):
     '''
     修改为直接输出
     '''
-    assert x.shape[-1] == 16, f"input shape last dimension expected 4 but input shape is {x.shape}"  # 4个点改成16个点
+    assert x.shape[-1] == 16, f"input shape last dimension expected 16 but input shape is {x.shape}"  # 4个点改成16个点
     y = x.clone() if isinstance(x, torch.Tensor) else x.copy()  # foco修改
     '''
     # 不用做数据转换，全部注释掉
@@ -514,12 +514,17 @@ def xywhn2xyxy(x, w=640, h=640, padw=0, padh=0):
         y (np.ndarray | torch.Tensor): The coordinates of the bounding box in the format [x1, y1, x2, y2] where
             x1,y1 is the top-left corner, x2,y2 is the bottom-right corner of the bounding box.
     """
-    assert x.shape[-1] == 4, f"input shape last dimension expected 4 but input shape is {x.shape}"
+    assert x.shape[-1] == 16, f"input shape last dimension expected 4 but input shape is {x.shape}"     # 4 --> 16
     y = torch.empty_like(x) if isinstance(x, torch.Tensor) else np.empty_like(x)  # faster than clone/copy
+    y[..., [0, 2, 4, 6, 8, 10, 12, 14]] = w * x[..., [0, 2, 4, 6, 8, 10, 12, 14]] + padw    # 4 --> 16
+    y[..., [1, 3, 5, 7, 9, 11, 13, 15]] = h * x[..., [1, 3, 5, 7, 9, 11, 13, 15]] + padh    # 4 --> 16
+    '''
+    # foco 全部注释掉
     y[..., 0] = w * (x[..., 0] - x[..., 2] / 2) + padw  # top left x
     y[..., 1] = h * (x[..., 1] - x[..., 3] / 2) + padh  # top left y
     y[..., 2] = w * (x[..., 0] + x[..., 2] / 2) + padw  # bottom right x
     y[..., 3] = h * (x[..., 1] + x[..., 3] / 2) + padh  # bottom right y
+    '''
     return y
 
 
@@ -540,12 +545,17 @@ def xyxy2xywhn(x, w=640, h=640, clip=False, eps=0.0):
     """
     if clip:
         x = clip_boxes(x, (h - eps, w - eps))
-    assert x.shape[-1] == 4, f"input shape last dimension expected 4 but input shape is {x.shape}"
+    assert x.shape[-1] == 16, f"input shape last dimension expected 16 but input shape is {x.shape}"    # 4 --> 16
     y = torch.empty_like(x) if isinstance(x, torch.Tensor) else np.empty_like(x)  # faster than clone/copy
+    y[..., [0, 2, 4, 6, 8, 10, 12, 14]] = x[..., [0, 2, 4, 6, 8, 10, 12, 14]] / w    # 4 --> 16
+    y[..., [1, 3, 5, 7, 9, 11, 13, 15]] = x[..., [1, 3, 5, 7, 9, 11, 13, 15]] / h    # 4 --> 16
+    '''
+    # foco 全部注释掉
     y[..., 0] = ((x[..., 0] + x[..., 2]) / 2) / w  # x center
     y[..., 1] = ((x[..., 1] + x[..., 3]) / 2) / h  # y center
     y[..., 2] = (x[..., 2] - x[..., 0]) / w  # width
     y[..., 3] = (x[..., 3] - x[..., 1]) / h  # height
+    '''
     return y
 
 
