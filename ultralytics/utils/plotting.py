@@ -332,7 +332,37 @@ class Annotator:
                 cv2.polylines(self.im, [np.asarray(box, dtype=int)], True, color, self.lw)  # cv2 requires nparray box
             else:
                 p1, p2 = (int(box[0]), int(box[1])), (int(box[2]), int(box[3]))
-                cv2.rectangle(self.im, p1, p2, color, thickness=self.lw, lineType=cv2.LINE_AA)
+                # cv2.rectangle(self.im, p1, p2, color, thickness=self.lw, lineType=cv2.LINE_AA)
+                '''
+                foco edited
+                '''
+                # 遍历原始多边形列表，绘制每个多边形
+                quads = list(zip(box[::2], box[1::2]))
+                # 2. 绘制每个顶点
+                for i, (x, y) in enumerate(quads):
+                    cv2.circle(self.im, (int(x), int(y)), radius=3, color=(0, 255, 0), thickness=-1)  # 绘制顶点
+                    cv2.putText(self.im, f"{i+1}", (int(x) + 5, int(y) - 5), cv2.FONT_HERSHEY_SIMPLEX,
+                            fontScale=0.4, color=(255, 255, 255), thickness=1, lineType=cv2.LINE_AA)  # 标注顶点
+
+                # 3. 绘制多边形
+                pts = np.array(quads, dtype=np.int32).reshape((-1, 1, 2))
+                cv2.polylines(self.im, [pts], isClosed=True, color=(255, 0, 0), thickness=1)  # 蓝色多边形
+                '''
+                for i in range(len(quads)):
+                    # 绘制每个顶点
+                    self.draw.text(quads[i], text=f'Vertex {i+1}')
+                self.draw.line(quads, fill='blue', width=1)  # 绘制多边形
+                '''
+                # 绘制根据8个点的外接矩形
+                x_min = min(box[::2])
+                x_max = max(box[::2])
+                y_min = min(box[1::2])
+                y_max = max(box[1::2])
+                quads_rect = [(x_min, y_min),(x_max, y_min),(x_max, y_max),(x_min, y_max),] # 外接矩形顶点
+                rect_pts = np.array(quads_rect, dtype=np.int32).reshape((-1, 1, 2))
+                cv2.polylines(self.im, [rect_pts], isClosed=True, color=(0, 0, 255), thickness=1)  # 红色矩形
+                # foco ends
+
             if label:
                 w, h = cv2.getTextSize(label, 0, fontScale=self.sf, thickness=self.tf)[0]  # text width, height
                 h += 3  # add pixels to pad text

@@ -103,6 +103,9 @@ def scale_boxes(img1_shape, boxes, img0_shape, ratio_pad=None, padding=True, xyw
     Returns:
         boxes (torch.Tensor): The scaled bounding boxes, in the format of (x1, y1, x2, y2)
     """
+    '''
+    @ foco 做了大量修改
+    '''
     if ratio_pad is None:  # calculate from img0_shape
         gain = min(img1_shape[0] / img0_shape[0], img1_shape[1] / img0_shape[1])  # gain  = old / new
         pad = (
@@ -116,10 +119,27 @@ def scale_boxes(img1_shape, boxes, img0_shape, ratio_pad=None, padding=True, xyw
     if padding:
         boxes[..., 0] -= pad[0]  # x padding
         boxes[..., 1] -= pad[1]  # y padding
+        boxes[..., 2] -= pad[0]  # x padding
+        boxes[..., 3] -= pad[1]  # y padding
+        boxes[..., 4] -= pad[0]  # x padding
+        boxes[..., 5] -= pad[1]  # y padding
+        boxes[..., 6] -= pad[0]  # x padding
+        boxes[..., 7] -= pad[1]  # y padding
+        boxes[..., 8] -= pad[0]  # x padding
+        boxes[..., 9] -= pad[1]  # y padding
+        boxes[..., 10] -= pad[0]  # x padding
+        boxes[..., 11] -= pad[1]  # y padding
+        boxes[..., 12] -= pad[0]  # x padding
+        boxes[..., 13] -= pad[1]  # y padding
+        boxes[..., 14] -= pad[0]  # x padding
+        boxes[..., 15] -= pad[1]  # y padding
+        '''
+        # 全部修改，因为现在实际上xyxy和xywh是一个
         if not xywh:
             boxes[..., 2] -= pad[0]  # x padding
             boxes[..., 3] -= pad[1]  # y padding
-    boxes[..., :4] /= gain
+        '''
+    boxes[..., :16] /= gain         # 4 --> 16
     return clip_boxes(boxes, img0_shape)
 
 
@@ -345,14 +365,29 @@ def clip_boxes(boxes, shape):
     Returns:
         (torch.Tensor | numpy.ndarray): Clipped boxes
     """
+    '''
+    @foco 修改：4 --> 16
+    '''
     if isinstance(boxes, torch.Tensor):  # faster individually (WARNING: inplace .clamp_() Apple MPS bug)
         boxes[..., 0] = boxes[..., 0].clamp(0, shape[1])  # x1
         boxes[..., 1] = boxes[..., 1].clamp(0, shape[0])  # y1
         boxes[..., 2] = boxes[..., 2].clamp(0, shape[1])  # x2
         boxes[..., 3] = boxes[..., 3].clamp(0, shape[0])  # y2
+        boxes[..., 4] = boxes[..., 4].clamp(0, shape[1])  # x3
+        boxes[..., 5] = boxes[..., 5].clamp(0, shape[0])  # y3
+        boxes[..., 6] = boxes[..., 6].clamp(0, shape[1])  # x4
+        boxes[..., 7] = boxes[..., 7].clamp(0, shape[0])  # y4
+        boxes[..., 8] = boxes[..., 8].clamp(0, shape[1])  # x5
+        boxes[..., 9] = boxes[..., 9].clamp(0, shape[0])  # y5
+        boxes[..., 10] = boxes[..., 10].clamp(0, shape[1])  # x6
+        boxes[..., 11] = boxes[..., 11].clamp(0, shape[0])  # y6
+        boxes[..., 12] = boxes[..., 12].clamp(0, shape[1])  # x7
+        boxes[..., 13] = boxes[..., 13].clamp(0, shape[0])  # y7
+        boxes[..., 14] = boxes[..., 14].clamp(0, shape[1])  # x8
+        boxes[..., 15] = boxes[..., 15].clamp(0, shape[0])  # y8
     else:  # np.array (faster grouped)
-        boxes[..., [0, 2]] = boxes[..., [0, 2]].clip(0, shape[1])  # x1, x2
-        boxes[..., [1, 3]] = boxes[..., [1, 3]].clip(0, shape[0])  # y1, y2
+        boxes[..., [0, 2, 4, 6, 8, 10, 12, 14]] = boxes[..., [0, 2, 4, 6, 8, 10, 12, 14]].clip(0, shape[1])  # x1, x2, x3, x4, x5, x6, x7, x8
+        boxes[..., [1, 3, 5, 7, 9, 11, 13, 15]] = boxes[..., [1, 3, 5, 7, 9, 11, 13, 15]].clip(0, shape[0])  # y1, y2, y3, y4, y5, y6, y7, y8
     return boxes
 
 
@@ -426,15 +461,16 @@ def xyxy2xywh(x):
     修改为直接输出
     '''
     assert x.shape[-1] == 16, f"input shape last dimension expected 4 but input shape is {x.shape}"  # 4个点改成16个点
-    y = torch.empty_like(x) if isinstance(x, torch.Tensor) else np.empty_like(x)  # faster than clone/copy
-    # 不用做数据转换，全部注释掉
+    y = x.clone() if isinstance(x, torch.Tensor) else x.copy()  # foco修改
     '''
+    # 不用做数据转换，全部注释掉
+    y = torch.empty_like(x) if isinstance(x, torch.Tensor) else np.empty_like(x)  # faster than clone/copy
     y[..., 0] = (x[..., 0] + x[..., 2]) / 2  # x center
     y[..., 1] = (x[..., 1] + x[..., 3]) / 2  # y center
     y[..., 2] = x[..., 2] - x[..., 0]  # width
     y[..., 3] = x[..., 3] - x[..., 1]  # height
     '''
-    return x    # 由于不进行转换，直接输出x即可(x已经是张量)。
+    return y    # 由于不进行转换，直接输出x即可(x已经是张量)。
 
 
 def xywh2xyxy(x):
@@ -452,14 +488,16 @@ def xywh2xyxy(x):
     修改：输入数据直接是8个点，所以不需要转换（虽然让程序以为输入时为xywh）
     '''
     assert x.shape[-1] == 16, f"input shape last dimension expected 4 but input shape is {x.shape}"      # 从4个点改成16个点
-    y = torch.empty_like(x) if isinstance(x, torch.Tensor) else np.empty_like(x)  # faster than clone/copy
+    y = x.clone() if isinstance(x, torch.Tensor) else x.copy()  # foco修改
     '''
+    # 不用做数据转换，全部注释掉
+    y = torch.empty_like(x) if isinstance(x, torch.Tensor) else np.empty_like(x)  # faster than clone/copy
     xy = x[..., :2]  # centers
     wh = x[..., 2:] / 2  # half width-height
     y[..., :2] = xy - wh  # top left xy
     y[..., 2:] = xy + wh  # bottom right xy
     '''
-    return x        # 由于不进行转换，直接输出x即可(x已经是张量)。
+    return y        # 由于不进行转换，直接输出x即可(x已经是张量)。
 
 
 def xywhn2xyxy(x, w=640, h=640, padw=0, padh=0):

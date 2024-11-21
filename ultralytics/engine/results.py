@@ -510,7 +510,6 @@ class Results(SimpleClass):
             pil or (pred_probs is not None and show_probs),  # Classify tasks default to pil=True
             example=names,
         )
-
         # Plot Segment results
         if pred_masks and show_masks:
             if im_gpu is None:
@@ -531,7 +530,7 @@ class Results(SimpleClass):
                 c, conf, id = int(d.cls), float(d.conf) if conf else None, None if d.id is None else int(d.id.item())
                 name = ("" if id is None else f"id:{id} ") + names[c]
                 label = (f"{name} {conf:.2f}" if conf else name) if labels else None
-                box = d.xyxyxyxy.reshape(-1, 4, 2).squeeze() if is_obb else d.xyxy.squeeze()
+                box = d.xyxyxyxy.reshape(-1, 4, 2).squeeze() if is_obb else d.xyxy.squeeze()    #发现预测结果中xywh更像真实结果 @foco没事了，原因是浅拷贝问题
                 annotator.box_label(
                     box,
                     label,
@@ -904,7 +903,7 @@ class Boxes(BaseTensor):
         if boxes.ndim == 1:
             boxes = boxes[None, :]
         n = boxes.shape[-1]
-        assert n in {6, 7}, f"expected 6 or 7 values but got {n}"  # xyxy, track_id, conf, cls
+        assert n in {18, 19}, f"expected 18 or 19 values but got {n}"  # xyxy, track_id, conf, cls  4 --> 16
         super().__init__(boxes, orig_shape)
         self.is_track = n == 7
         self.orig_shape = orig_shape
@@ -924,7 +923,7 @@ class Boxes(BaseTensor):
             >>> xyxy = boxes.xyxy
             >>> print(xyxy)
         """
-        return self.data[:, :4]
+        return self.data[:, :16]     # 4 --> 16
 
     @property
     def conf(self):
@@ -1025,8 +1024,8 @@ class Boxes(BaseTensor):
             tensor([[0.1562, 0.1042, 0.4688, 0.8333]])
         """
         xyxy = self.xyxy.clone() if isinstance(self.xyxy, torch.Tensor) else np.copy(self.xyxy)
-        xyxy[..., [0, 2]] /= self.orig_shape[1]
-        xyxy[..., [1, 3]] /= self.orig_shape[0]
+        xyxy[..., [0, 2, 4, 6, 8, 10, 12, 14]] /= self.orig_shape[1]     # 4 --> 16
+        xyxy[..., [1, 3, 5, 7, 9, 11, 13, 15]] /= self.orig_shape[0]     # 4 --> 16
         return xyxy
 
     @property
@@ -1050,8 +1049,8 @@ class Boxes(BaseTensor):
             tensor([[0.1953, 0.1562, 0.0781, 0.1042]])
         """
         xywh = ops.xyxy2xywh(self.xyxy)
-        xywh[..., [0, 2]] /= self.orig_shape[1]
-        xywh[..., [1, 3]] /= self.orig_shape[0]
+        xywh[..., [0, 2, 4, 6, 8, 10, 12, 14]] /= self.orig_shape[1]     # 4 --> 16
+        xywh[..., [1, 3, 5, 7, 9, 11, 13, 15]] /= self.orig_shape[0]     # 4 --> 16
         return xywh
 
 
