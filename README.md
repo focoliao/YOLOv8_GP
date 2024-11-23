@@ -91,7 +91,7 @@
 - 对应reg_max部分，都从*4改成*16。具体见ultralytics/nn/modules/head.py
 #### 2.2 修改损失函数
 - 修改输出部分，从4修改为8。具体见ultralytics/utils/loss.py
-- 增加自定义loss。具体见ultralytics/utils/loss.py
+- 增加自定义GPLoss，做了大量修改。具体见ultralytics/utils/loss.py
 - 修改输出层为reg_max * 16，具体见ultralytics/utils/loss.py
 - 修改dist2bbox，具体见ultralytics/utils/tal.py dist2bbox
 - 原来使用BboxLoss, 返回loss_iou和loss_dfl。采用GPLoss函数，尽量覆盖BboxLoss的内容。

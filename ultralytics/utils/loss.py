@@ -23,29 +23,34 @@ class GPLoss(nn.Module):
         self.dfl_loss = DFLoss(reg_max) if reg_max > 1 else None
 
     def forward(self, pred_dist, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask):
+        weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)
         # 处理输入数据：将pred和target都分为top和bottom
-        chunked_pred = pred_bboxes.chunk(2, dim=-1)  # 将 pred_bboxes 沿最后一个维度拆分为 2 个块
+        chunked_pred = pred_bboxes[fg_mask].view(-1,8,2).chunk(2, dim=-2)  # 将 pred_bboxes 沿最后一个维度拆分为 2 个块
         pred_vertices_top, pred_vertices_bottom = chunked_pred[1], chunked_pred[0]  # 前面8个为底部的，后面8个为顶部的
-        chunked_target = target_bboxes.chunk(2, dim=-1) # 将 target_bboxes 沿最后一个维度拆分为 2 个块
+        chunked_target = target_bboxes[fg_mask].view(-1,8,2).chunk(2, dim=-2) # 将 target_bboxes 沿最后一个维度拆分为 2 个块
         target_vertices_top, target_vertices_bottom = chunked_target[1], chunked_target[0]  # 前面8个为底部的，后面8个为顶部的
-        
         # MSE Loss for vertices
-        mse_loss_top = nn.MSELoss()(pred_vertices_top, target_vertices_top)
-        mse_loss_bottom = nn.MSELoss()(pred_vertices_bottom, target_vertices_bottom)
+        mse_loss_top = ((pred_vertices_top - target_vertices_top) ** 2).mean(dim=[1, 2])  # 逐样本计算 MSE
+        mse_loss_bottom = ((pred_vertices_bottom - target_vertices_bottom) ** 2).mean(dim=[1, 2])  # 逐样本计算 MSE
+        mse_loss = mse_loss_top + mse_loss_bottom
+        mse_loss = (mse_loss * weight).sum() / target_scores_sum
+        
         # Angle loss
         angle_loss_top = self.angle_loss(pred_vertices_top, target_vertices_top)
         angle_loss_bottom = self.angle_loss(pred_vertices_bottom, target_vertices_bottom)
+        angle_loss = angle_loss_top + angle_loss_bottom
+        angle_loss = (angle_loss* weight).sum() / target_scores_sum
 
         # Translation loss
         translation_loss_top = self.translation_loss(pred_vertices_top, target_vertices_top)
         translation_loss_bottom = self.translation_loss(pred_vertices_bottom, target_vertices_bottom)
+        translation_loss = translation_loss_top + translation_loss_bottom
+        translation_loss = (translation_loss*weight).sum() / target_scores_sum
 
         # Total loss
-        so_called_iou_loss = mse_loss_top + mse_loss_bottom + angle_loss_top + angle_loss_bottom + translation_loss_top + translation_loss_bottom
-        
-        weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)
+        so_called_iou_loss = mse_loss +  angle_loss + translation_loss
 
-        # DFL loss
+        # DFL loss: 这部分肯定要修改，待办
         if self.dfl_loss:
             target_ltrb = bbox2dist(anchor_points, target_bboxes, self.dfl_loss.reg_max - 1)
             loss_dfl = self.dfl_loss(pred_dist[fg_mask].view(-1, self.dfl_loss.reg_max), target_ltrb[fg_mask]) * weight
@@ -68,29 +73,37 @@ class GPLoss(nn.Module):
         Returns:
         Tensor representing the angle loss for each element in the batch.
         """
-
         # Extract the first edge for both predicted and target vertices
         pred_edge = pred_vertices[:, 1] - pred_vertices[:, 0]  # (N, 2)
         target_edge = target_vertices[:, 1] - target_vertices[:, 0]  # (N, 2)
 
-        # Compute angles for predicted and target edges
-        pred_angle = torch.atan2(pred_edge[:, 1], pred_edge[:, 0])  # (N,)
-        target_angle = torch.atan2(target_edge[:, 1], target_edge[:, 0])  # (N,)
+        # 检查输入维度
+        if pred_edge.dim() != 2 or pred_edge.size(1) != 2:
+            raise ValueError("pred_edge must have shape [N, 2]")
 
+        # 检查无效值
+        if torch.isnan(pred_edge).any() or torch.isinf(pred_edge).any():
+            raise ValueError("pred_edge contains NaN or Inf values.")
+
+        # Compute angles for predicted and target edges
+        
+        eps = 1e-6  # 小常数防止除以0
+        target_angle = torch.atan2(target_edge[:, 1], target_edge[:, 0] + eps)  # (N,)
+        pred_angle = torch.atan2(pred_edge[:, 1], pred_edge[:, 0] + eps)  # (N,)
         # Compute angle difference
         angle_diff = torch.abs(pred_angle - target_angle)  # (N,)
 
         # Ensure the angle difference is within [0, π]
         angle_loss = torch.minimum(angle_diff, 2 * torch.pi - angle_diff)
 
-        return angle_loss.mean()  # Return mean angle loss over the batch
+        return angle_loss  # Return mean angle loss over the batch
 
     def translation_loss(self, pred_vertices, target_vertices):
         pred_centroid = pred_vertices.mean(dim=1)  # Shape (N, 2)
         target_centroid = target_vertices.mean(dim=1)  # Shape (N, 2)
     
         # Compute the Euclidean distance between centroids
-        return torch.mean(torch.norm(pred_centroid - target_centroid, p=2, dim=1))
+        return torch.norm(pred_centroid - target_centroid, p=2, dim=1)
 
 
 class VarifocalLoss(nn.Module):
@@ -254,11 +267,13 @@ class v8DetectionLoss:
 
         self.assigner = TaskAlignedAssigner(topk=tal_topk, num_classes=self.nc, alpha=0.5, beta=6.0)
         # self.bbox_loss = BboxLoss(m.reg_max).to(device)
-        self.bbox_loss = GPLoss()
+        self.bbox_loss = GPLoss(m.reg_max).to(device)   # 用自定义的loss代替bbox_loss
         self.proj = torch.arange(m.reg_max, dtype=torch.float, device=device)
 
     def preprocess(self, targets, batch_size, scale_tensor):
         """Preprocesses the target counts and matches with the input batch size to output a tensor."""
+        #print(f'==> targets:{targets}')
+        #print(f'==> targets.shape:{targets.shape}')
         nl, ne = targets.shape
         if nl == 0:
             out = torch.zeros(batch_size, 0, ne - 1, device=self.device)
@@ -273,6 +288,8 @@ class v8DetectionLoss:
                 if n:
                     out[j, :n] = targets[matches, 1:]
             out[..., 1:17] = xywh2xyxy(out[..., 1:17].mul_(scale_tensor))     # 4个点修改为16个点，1:5 --> 1:17
+        #print(f'==> out.shape:{out.shape}')
+        #print(f'==> out:{out}')
         return out
 
     def bbox_decode(self, anchor_points, pred_dist):
@@ -304,6 +321,8 @@ class v8DetectionLoss:
         anchor_points, stride_tensor = make_anchors(feats, self.stride, 0.5)
 
         # Targets
+        # print(f'==>batch["bboxes"]:{batch["bboxes"]}')
+        # print(f'==>batch["cls"]:{batch["cls"]}')
         targets = torch.cat((batch["batch_idx"].view(-1, 1), batch["cls"].view(-1, 1), batch["bboxes"]), 1)
         targets = self.preprocess(targets.to(self.device), batch_size, scale_tensor=imgsz[[1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]])    # 修改了缩放乘积计算所需，4-->16个点
         gt_labels, gt_bboxes = targets.split((1, 16), 2)  # cls, xyxy  --> 修改为： cls, x1y1x2y2x3y3x4y4x5y5x6y6x7y7x8y8

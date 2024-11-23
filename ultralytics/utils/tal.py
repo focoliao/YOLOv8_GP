@@ -361,7 +361,10 @@ def bbox2dist(anchor_points, bbox, reg_max):
     """Transform bbox(xyxy) to dist(ltrb)."""
     # foco修改：修改为8个点离anchor的距离。但是加减如何处理呢？
     # 目前算法：随便定了一个：下为加，上为减。保持dist2bbox和bbox2dis互为逆运算即可
+    #print(f'==tal:bbox2dist==anchor_points:{anchor_points}')
+    #print(f'==tal:bbox2dist==bbox:{bbox}')
     x1y1, x2y2, x3y3, x4y4, x5y5, x6y6, x7y7, x8y8 = bbox.chunk(8, dim=-1)
+    #print(f'==tal:bbox2dist==x1y1:{x1y1}')
     # x1y1, x2y2 = bbox.chunk(2, -1)
     flb = - anchor_points + x1y1   # 前左下坐标：好像有问题
     elb = - anchor_points + x2y2   # 后左下坐标
@@ -371,6 +374,7 @@ def bbox2dist(anchor_points, bbox, reg_max):
     frt = anchor_points - x6y6   # 前右上坐标
     ert = anchor_points - x7y7   # 后右上坐标
     elt = anchor_points - x8y8   # 后左上坐标
+    #print(f'==tal:bbox2dist==elt:{elt}')
     # return torch.cat((anchor_points - x1y1, x2y2 - anchor_points), -1).clamp_(0, reg_max - 0.01)  # dist (lt, rb)
     return torch.cat((flb, elb, erb, frb, flt, frt, ert, elt), -1).clamp_(0, reg_max - 0.01)  # dist (lt, rb)
 
