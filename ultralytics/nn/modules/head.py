@@ -94,10 +94,10 @@ class Detect(nn.Module):
             self.shape = shape
 
         if self.export and self.format in {"saved_model", "pb", "tflite", "edgetpu", "tfjs"}:  # avoid TF FlexSplitV ops
-            box = x_cat[:, : self.reg_max * 16]
-            cls = x_cat[:, self.reg_max * 16 :]
+            box = x_cat[:, : self.reg_max * 16]     # 4 --> 16
+            cls = x_cat[:, self.reg_max * 16 :]     # 4 --> 16
         else:
-            box, cls = x_cat.split((self.reg_max * 16, self.nc), 1)
+            box, cls = x_cat.split((self.reg_max * 16, self.nc), 1)     # 4 --> 16
 
         if self.export and self.format in {"tflite", "edgetpu"}:
             # Precompute normalization factor to increase numerical stability

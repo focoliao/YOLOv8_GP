@@ -299,7 +299,7 @@ class Annotator:
                 quads = list(zip(box[::2], box[1::2]))
                 for i in range(len(quads)):
                     # 绘制每个顶点
-                    self.draw.text(quads[i], text=f'Vertex {i+1}')
+                    self.draw.text(quads[i], text=f'{i+1}')
                 self.draw.line(quads, fill='blue', width=1)  # 绘制多边形
                 # 绘制根据8个点的外接矩形
                 x_min = min(box[::2])

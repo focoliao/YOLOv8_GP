@@ -113,6 +113,7 @@
 - 修改val，代码在ultralytics/models/yolo/detect/val.py
 - 同时会修改很多计算公式，在metrics.py中
 - 修改DetectionValidator，在ultralytics/models/yolo/detect/val.py中
+- 修改了DFL，在ultralytics/nn/modules/block.py DFL
 
 #### 2.7 其他修改如计算公式等
 - 修改修改xywh2xyxy，xyxy2xywh：变成直接输出，因为虽然我们让程序以为输入的为xywh，实际上，输入的是xyxy的16个点。ultralytics\utils\ops.py xyxy2xywh xywh2xyxy

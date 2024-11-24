@@ -340,6 +340,8 @@ def newbbox2xyxy(newbbox):
     '''
     foco增加：从16个点中，找到x_min,x_max,y_min,y_max，可认为是目标的xyxy
     '''
+    assert newbbox.shape[-1] == 16, f"input shape last dimension expected 16 but input shape is {newbbox.shape}"  # 4个点改成16个点
+    y = newbbox.clone() if isinstance(newbbox, torch.Tensor) else newbbox.copy()  # foco修改
     # 将 16个点的box，转换成4个点的box：16个点分8组
     xys_tmp = newbbox.reshape(*newbbox.shape[:-1], 8, 2)   # 16个点分为8组
     # 提取每组的第一个元素为 x 坐标，第二个元素为 y 坐标
@@ -353,6 +355,24 @@ def newbbox2xyxy(newbbox):
     newxyxy = torch.stack((x_min,y_min,x_max,y_max), dim=-1)
     return newxyxy
 
+def cbboxes2bboxes(cbboxes):
+    '''
+    foco增加：从16个点中，找到x_min,x_max,y_min,y_max，可认为是目标的xyxy
+    '''
+    assert cbboxes.shape[-1] == 16, f"input shape last dimension expected 16 but input shape is {cbboxes.shape}"  # 4个点改成16个点
+    y = cbboxes.clone() if isinstance(cbboxes, torch.Tensor) else cbboxes.copy()  # foco修改
+    # 将 16个点的box，转换成4个点的box：16个点分8组
+    xys_tmp = y.reshape(*y.shape[:-1], 8, 2)   # 16个点分为8组
+    # 提取每组的第一个元素为 x 坐标，第二个元素为 y 坐标
+    x_coords = xys_tmp[...,0]  # 每组的 x 坐标
+    y_coords = xys_tmp[...,1]  # 每组的 y 坐标
+    # 计算 x 坐标和 y 坐标的最小值和最大值
+    x_min = x_coords.min(dim=-1)[0]  # 最小值 x1
+    x_max = x_coords.max(dim=-1)[0]  # 最大值 x2
+    y_min = y_coords.min(dim=-1)[0]  # 最小值 y1
+    y_max = y_coords.max(dim=-1)[0]  # 最大值 y2
+    bboxes = torch.stack((x_min,y_min,x_max,y_max), dim=-1)
+    return bboxes
 
 def clip_boxes(boxes, shape):
     """

@@ -129,6 +129,7 @@ class BaseTrainer:
 
         # Model and Dataset
         self.model = check_model_file_from_stem(self.args.model)  # add suffix, i.e. yolov8n -> yolov8n.pt
+        print(f'--->0self.model:{self.model}')
         with torch_distributed_zero_first(LOCAL_RANK):  # avoid auto-downloading dataset multiple times
             self.trainset, self.testset = self.get_dataset()
         self.ema = None
@@ -350,7 +351,7 @@ class BaseTrainer:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")  # suppress 'Detected lr_scheduler.step() before optimizer.step()'
                 self.scheduler.step()
-
+            
             self.model.train()
             if RANK != -1:
                 self.train_loader.sampler.set_epoch(epoch)
@@ -389,8 +390,23 @@ class BaseTrainer:
                         (self.tloss * i + self.loss_items) / (i + 1) if self.tloss is not None else self.loss_items
                     )
 
+                '''
+                # @foco: 在 backward 前打印所有层的梯度，验证梯度反向传播正确性
+                for name, param in self.model.named_parameters():
+                    if param.requires_grad:
+                        print(f'Before backward: {name}, Grad: {param.grad}')  # 反向传播前，梯度应该是 None
+                '''
+
                 # Backward
                 self.scaler.scale(self.loss).backward()
+            
+                '''
+                # @foco: 在 backward 后打印所有层的梯度，验证梯度反向传播正确性
+                for name, param in self.model.named_parameters():
+                    if param.requires_grad:
+                        print(f'After backward: {name}, Grad: {param.grad}')  # 反向传播后，梯度应该是非None
+                '''
+
 
                 # Optimize - https://pytorch.org/docs/master/notes/amp_examples.html
                 if ni - last_opt_step >= self.accumulate:
@@ -542,9 +558,9 @@ class BaseTrainer:
 
     def setup_model(self):
         """Load/create/download model for any task."""
+        print(f'--->2self.model:{self.model.__module__}')
         if isinstance(self.model, torch.nn.Module):  # if model is loaded beforehand. No setup needed
             return
-
         cfg, weights = self.model, None
         ckpt = None
         if str(self.model).endswith(".pt"):

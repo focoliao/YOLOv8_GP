@@ -16,7 +16,6 @@ from image_tools import predict_data_check
 
 #加载上级目录下的文件
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))   #切换目录位置到上一级
-print(sys.path)
 from ultralytics import YOLO
 
 #配置文件

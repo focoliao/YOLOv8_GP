@@ -36,7 +36,7 @@ class TaskAlignedAssigner(nn.Module):
         self.eps = eps
 
     @torch.no_grad()
-    def forward(self, pd_scores, pd_bboxes, anc_points, gt_labels, gt_bboxes, mask_gt):
+    def forward(self, pd_scores, pd_bboxes, anc_points, gt_labels, gt_bboxes, gt_cbboxes, mask_gt):
         """
         Compute the task-aligned assignment. Reference code is available at
         https://github.com/Nioolek/PPYOLOE_pytorch/blob/master/ppyoloe/assigner/tal_assigner.py.
@@ -56,6 +56,9 @@ class TaskAlignedAssigner(nn.Module):
             fg_mask (Tensor): shape(bs, num_total_anchors)
             target_gt_idx (Tensor): shape(bs, num_total_anchors)
         """
+        '''
+        # foco做了修改：以gt_bboxes来进行正负样本分配，然后以idx来生成target_cbboxes
+        '''
         self.bs = pd_scores.shape[0]
         self.n_max_boxes = gt_bboxes.shape[1]
 
@@ -75,7 +78,7 @@ class TaskAlignedAssigner(nn.Module):
         target_gt_idx, fg_mask, mask_pos = self.select_highest_overlaps(mask_pos, overlaps, self.n_max_boxes)
 
         # Assigned target
-        target_labels, target_bboxes, target_scores = self.get_targets(gt_labels, gt_bboxes, target_gt_idx, fg_mask)
+        target_labels, target_cbboxes, target_scores = self.get_targets(gt_labels, gt_cbboxes, target_gt_idx, fg_mask)
 
         # Normalize
         align_metric *= mask_pos
@@ -84,7 +87,7 @@ class TaskAlignedAssigner(nn.Module):
         norm_align_metric = (align_metric * pos_overlaps / (pos_align_metrics + self.eps)).amax(-2).unsqueeze(-1)
         target_scores = target_scores * norm_align_metric
 
-        return target_labels, target_bboxes, target_scores, fg_mask.bool(), target_gt_idx
+        return target_labels, target_cbboxes, target_scores, fg_mask.bool(), target_gt_idx
 
     def get_pos_mask(self, pd_scores, pd_bboxes, gt_labels, gt_bboxes, anc_points, mask_gt):
         """Get in_gts mask, (b, max_num_obj, h*w)."""
@@ -161,7 +164,7 @@ class TaskAlignedAssigner(nn.Module):
 
         return count_tensor.to(metrics.dtype)
 
-    def get_targets(self, gt_labels, gt_bboxes, target_gt_idx, fg_mask):
+    def get_targets(self, gt_labels, gt_cbboxes, target_gt_idx, fg_mask):
         """
         Compute target labels, target bounding boxes, and target scores for the positive anchor points.
 
@@ -191,7 +194,7 @@ class TaskAlignedAssigner(nn.Module):
         target_labels = gt_labels.long().flatten()[target_gt_idx]  # (b, h*w)
 
         # Assigned target boxes, (b, max_num_obj, 4) -> (b, h*w, 4)
-        target_bboxes = gt_bboxes.view(-1, gt_bboxes.shape[-1])[target_gt_idx]
+        target_bboxes = gt_cbboxes.view(-1, gt_cbboxes.shape[-1])[target_gt_idx]
 
         # Assigned target scores
         target_labels.clamp_(0)
@@ -216,7 +219,7 @@ class TaskAlignedAssigner(nn.Module):
 
         Args:
             xy_centers (torch.Tensor): Anchor center coordinates, shape (h*w, 2).
-            gt_bboxes (torch.Tensor): Ground truth bounding boxes, shape (b, n_boxes, 16).   # 从4改成16
+            gt_bboxes (torch.Tensor): Ground truth bounding boxes, shape (b, n_boxes, 4).
             eps (float, optional): Small value for numerical stability. Defaults to 1e-9.
 
         Returns:
@@ -228,24 +231,7 @@ class TaskAlignedAssigner(nn.Module):
         """
         n_anchors = xy_centers.shape[0]
         bs, n_boxes, _ = gt_bboxes.shape
-        # foco修改：将16个点分为8组，可以获得x最小值x0,x最大值x1,y最小值y0,y最大值y1，从而组成lt和rb
-        # 将 gt_bboxes 转换成形状 (b, n_boxes, 8, 2)，即分为 8 组，每组包含 2 个点
-        chunks_tmp = gt_bboxes.view(-1,1,16).chunk(8,dim=2)
-        # 提取每组的第一个元素为 x 坐标，第二个元素为 y 坐标
-        x_coords = [chunk[:, :, 0] for chunk in chunks_tmp]  # 每组的 x 坐标
-        y_coords = [chunk[:, :, 1] for chunk in chunks_tmp]  # 每组的 y 坐标
-        # 将 x 坐标和 y 坐标合并为一个新的张量，形状为 (b, n_boxes, 8)
-        x_coords_tensor = torch.stack(x_coords, dim=-1)  # 形状: (b, n_boxes, 8)
-        y_coords_tensor = torch.stack(y_coords, dim=-1)  # 形状: (b, n_boxes, 8)
-        # 计算 x 坐标和 y 坐标的最小值和最大值
-        x_min = x_coords_tensor.min(dim=-1).values  # 最小值 x1
-        x_max = x_coords_tensor.max(dim=-1).values  # 最大值 x2
-        y_min = y_coords_tensor.min(dim=-1).values  # 最小值 y1
-        y_max = y_coords_tensor.max(dim=-1).values  # 最大值 y2
-        # 计算左上角 (lt) 和右下角 (rb)
-        lt = torch.stack((x_min, y_min), dim=-1)  # 左上角 (x1, y1)
-        rb = torch.stack((x_max, y_max), dim=-1)  # 右下角 (x2, y2)
-        # lt, rb = gt_bboxes.view(-1, 1, 16).chunk(2, 2)  # left-top, right-bottom 修改为：front-left-top, end-right-bottom
+        lt, rb = gt_bboxes.view(-1, 1, 4).chunk(2, 2)  # left-top, right-bottom
         bbox_deltas = torch.cat((xy_centers[None] - lt, rb - xy_centers[None]), dim=2).view(bs, n_boxes, n_anchors, -1)
         # return (bbox_deltas.min(3)[0] > eps).to(gt_bboxes.dtype)
         return bbox_deltas.amin(3).gt_(eps)
@@ -333,7 +319,6 @@ def make_anchors(feats, strides, grid_cell_offset=0.5):
         stride_tensor.append(torch.full((h * w, 1), stride, dtype=dtype, device=device))
     return torch.cat(anchor_points), torch.cat(stride_tensor)
 
-
 def dist2bbox(distance, anchor_points, xywh=True, dim=-1):
     """Transform distance(ltrb) to box(xyxy)."""
     # foco修改
@@ -343,10 +328,10 @@ def dist2bbox(distance, anchor_points, xywh=True, dim=-1):
     x2y2 = anchor_points + elb   # 后左下坐标
     x3y3 = anchor_points + erb   # 后右下坐标
     x4y4 = anchor_points + frb   # 前右下坐标
-    x5y5 = anchor_points - flt   # 前左上坐标
-    x6y6 = anchor_points - frt   # 前右上坐标
-    x7y7 = anchor_points - ert   # 后右上坐标
-    x8y8 = anchor_points - elt   # 后左上坐标
+    x5y5 = anchor_points + flt   # 前左上坐标
+    x6y6 = anchor_points + frt   # 前右上坐标
+    x7y7 = anchor_points + ert   # 后右上坐标
+    x8y8 = anchor_points + elt   # 后左上坐标
 
     '''
     if xywh:
@@ -366,10 +351,10 @@ def bbox2dist(anchor_points, bbox, reg_max):
     x1y1, x2y2, x3y3, x4y4, x5y5, x6y6, x7y7, x8y8 = bbox.chunk(8, dim=-1)
     #print(f'==tal:bbox2dist==x1y1:{x1y1}')
     # x1y1, x2y2 = bbox.chunk(2, -1)
-    flb = - anchor_points + x1y1   # 前左下坐标：好像有问题
-    elb = - anchor_points + x2y2   # 后左下坐标
-    erb = - anchor_points + x3y3   # 后右下坐标
-    frb = - anchor_points + x4y4   # 前右下坐标
+    flb = - anchor_points - x1y1   # 前左下坐标：好像有问题
+    elb = - anchor_points - x2y2   # 后左下坐标
+    erb = - anchor_points - x3y3   # 后右下坐标
+    frb = - anchor_points - x4y4   # 前右下坐标
     flt = anchor_points - x5y5   # 前左上坐标
     frt = anchor_points - x6y6   # 前右上坐标
     ert = anchor_points - x7y7   # 后右上坐标
