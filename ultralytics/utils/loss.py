@@ -52,7 +52,7 @@ class GPLoss(nn.Module):
         # Total loss
         so_called_iou_loss = mse_loss +  angle_loss + translation_loss
 
-        # DFL loss: 这部分肯定要修改，待办
+        # DFL loss: 这部分感觉可能要修改，待办
         if self.dfl_loss:
             target_ltrb = bbox2dist(anchor_points, target_cbboxes, self.dfl_loss.reg_max - 1)
             loss_dfl = self.dfl_loss(pred_dist[fg_mask].view(-1, self.dfl_loss.reg_max), target_ltrb[fg_mask]) * weight

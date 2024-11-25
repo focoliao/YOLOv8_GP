@@ -285,7 +285,7 @@ class Annotator:
         txt_color = self.get_txt_color(color, txt_color)
         if isinstance(box, torch.Tensor):
             box = box.tolist()
-        if self.pil or not is_ascii(label):
+        if self.pil or not is_ascii(label): # 用于train时的打印
             if rotated:
                 p1 = box[0]
                 self.draw.polygon([tuple(b) for b in box], width=self.lw, outline=color)  # PIL requires tuple box
@@ -322,11 +322,11 @@ class Annotator:
                     p1 = self.im.size[0] - w, p1[1]
                 self.draw.rectangle(
                     (p1[0], p1[1] - h if outside else p1[1], p1[0] + w + 1, p1[1] + 1 if outside else p1[1] + h + 1),
-                    fill=color,
+                    outline=color,
                 )
                 # self.draw.text((box[0], box[1]), label, fill=txt_color, font=self.font, anchor='ls')  # for PIL>8.0
                 self.draw.text((p1[0], p1[1] - h if outside else p1[1]), label, fill=txt_color, font=self.font)
-        else:  # cv2
+        else:  # cv2    用于predict的打印
             if rotated:
                 p1 = [int(b) for b in box[0]]
                 cv2.polylines(self.im, [np.asarray(box, dtype=int)], True, color, self.lw)  # cv2 requires nparray box
@@ -370,7 +370,7 @@ class Annotator:
                 if p1[0] > self.im.shape[1] - w:  # shape is (h, w), check if label extend beyond right side of image
                     p1 = self.im.shape[1] - w, p1[1]
                 p2 = p1[0] + w, p1[1] - h if outside else p1[1] + h
-                cv2.rectangle(self.im, p1, p2, color, -1, cv2.LINE_AA)  # filled
+                cv2.rectangle(self.im, p1, p2, color, thickness=1, lineType=cv2.LINE_AA)  # filled
                 cv2.putText(
                     self.im,
                     label,
