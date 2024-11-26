@@ -323,7 +323,7 @@ class Annotator:
                 self.draw.rectangle(
                     (p1[0], p1[1] - h if outside else p1[1], p1[0] + w + 1, p1[1] + 1 if outside else p1[1] + h + 1),
                     outline=color,
-                )
+                )   # 方框有填充，影响观看，改成outline
                 # self.draw.text((box[0], box[1]), label, fill=txt_color, font=self.font, anchor='ls')  # for PIL>8.0
                 self.draw.text((p1[0], p1[1] - h if outside else p1[1]), label, fill=txt_color, font=self.font)
         else:  # cv2    用于predict的打印
@@ -370,7 +370,7 @@ class Annotator:
                 if p1[0] > self.im.shape[1] - w:  # shape is (h, w), check if label extend beyond right side of image
                     p1 = self.im.shape[1] - w, p1[1]
                 p2 = p1[0] + w, p1[1] - h if outside else p1[1] + h
-                cv2.rectangle(self.im, p1, p2, color, thickness=1, lineType=cv2.LINE_AA)  # filled
+                # cv2.rectangle(self.im, p1, p2, color, thickness=1, lineType=cv2.LINE_AA)  # filled 注释掉，画框影响观察结果
                 cv2.putText(
                     self.im,
                     label,

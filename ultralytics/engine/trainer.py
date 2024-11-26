@@ -129,7 +129,6 @@ class BaseTrainer:
 
         # Model and Dataset
         self.model = check_model_file_from_stem(self.args.model)  # add suffix, i.e. yolov8n -> yolov8n.pt
-        print(f'--->0self.model:{self.model}')
         with torch_distributed_zero_first(LOCAL_RANK):  # avoid auto-downloading dataset multiple times
             self.trainset, self.testset = self.get_dataset()
         self.ema = None
@@ -558,7 +557,6 @@ class BaseTrainer:
 
     def setup_model(self):
         """Load/create/download model for any task."""
-        print(f'--->2self.model:{self.model.__module__}')
         if isinstance(self.model, torch.nn.Module):  # if model is loaded beforehand. No setup needed
             return
         cfg, weights = self.model, None

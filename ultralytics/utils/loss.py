@@ -50,7 +50,7 @@ class GPLoss(nn.Module):
         translation_loss = (translation_loss*weight).sum() / target_scores_sum
 
         # Total loss
-        so_called_iou_loss = mse_loss +  angle_loss + translation_loss
+        so_called_iou_loss = 0.001 * mse_loss +  angle_loss + translation_loss
 
         # DFL loss: 这部分感觉可能要修改，待办
         if self.dfl_loss:
@@ -301,7 +301,6 @@ class v8DetectionLoss:
         """Decode predicted object bounding box coordinates from anchor points and distribution."""
         if self.use_dfl:
             b, a, c = pred_dist.shape  # batch, anchors, channels
-            print(f'==> c:{c}')
             pred_dist = pred_dist.view(b, a, 16, c // 16).softmax(3).matmul(self.proj.type(pred_dist.dtype))  # 修改从4个点变成16个点
             # pred_dist = pred_dist.view(b, a, c // 4, 4).transpose(2,3).softmax(3).matmul(self.proj.type(pred_dist.dtype))
             # pred_dist = (pred_dist.view(b, a, c // 4, 4).softmax(2) * self.proj.type(pred_dist.dtype).view(1, 1, -1, 1)).sum(2)

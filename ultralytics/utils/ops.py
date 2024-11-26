@@ -269,7 +269,7 @@ def non_max_suppression(
         '''
             
     t = time.time()
-    output = [torch.zeros((0, 18 + nm), device=prediction.device)] * bs      # 这个地方6修改: xyxy,conf,cls ==> 16,conf,cls
+    output = [torch.zeros((0, 18 + nm), device=prediction.device)] * bs      # 这个地方修改: xyxy,conf,cls ==> 16,conf,cls
     for xi, x in enumerate(prediction):  # image index, image inference
         # Apply constraints
         # x[((x[:, 2:4] < min_wh) | (x[:, 2:4] > max_wh)).any(1), 4] = 0  # width-height
@@ -279,7 +279,7 @@ def non_max_suppression(
         if labels and len(labels[xi]) and not rotated:
             lb = labels[xi]
             v = torch.zeros((len(lb), nc + nm + 4), device=x.device)    # 4 --> 16
-            v[:, :4] = xywh2xyxy(lb[:, 1:5])  # box     这个地方必然要改 ???
+            v[:, :4] = xywh2xyxy(lb[:, 1:5])  # box     这个地方暂时没用到，没有修改
             v[range(len(lb)), lb[:, 0].long() + 16] = 1.0  # cls    4 --> 16
             x = torch.cat((x, v), 0)
 

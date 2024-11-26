@@ -7,10 +7,13 @@
 - Python
 
 ## 文件结构说明
+1. 运行入口： /foco
 - configs: 所有配置文件
-- data: 主要是自定义dataset
-- engine: 方法核心引擎
-- tools: 各种工具
+- tools: 训练及预测代码，以及各种工具
+2. YOLOv8代码：
+- ultralytics：最主要的源代码，修改内容绝大部分在此处
+- runs：运行结果，还是按照YOLOv8的结构来的
+3. README：主要的介绍和修改内容说明
 
 ## YOLOv8原始结构训练及预测
 ### 1. 完成原始代码全链条，用以验证原始代码的可用性

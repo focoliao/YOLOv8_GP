@@ -71,15 +71,25 @@ class TaskAlignedAssigner(nn.Module):
                 torch.zeros_like(pd_scores[..., 0]).to(device),
                 torch.zeros_like(pd_scores[..., 0]).to(device),
             )
+
         mask_pos, align_metric, overlaps = self.get_pos_mask(
             pd_scores, pd_bboxes, gt_labels, gt_bboxes, anc_points, mask_gt
         )
 
         target_gt_idx, fg_mask, mask_pos = self.select_highest_overlaps(mask_pos, overlaps, self.n_max_boxes)
 
+        '''
+        #调试代码
+        # 统计 fg_mask 中值等于 True 的数量
+        count_test = (fg_mask == True).sum()
+        print("Number of elements equal to True:", count_test.item())
+        # 获取等于 True 的索引
+        indices_test = (fg_mask == True).nonzero(as_tuple=True)  # 使用 nonzero 获取索引
+        print("Indices where stride_tensor == True:", indices_test)
+        '''
+
         # Assigned target
         target_labels, target_cbboxes, target_scores = self.get_targets(gt_labels, gt_cbboxes, target_gt_idx, fg_mask)
-
         # Normalize
         align_metric *= mask_pos
         pos_align_metrics = align_metric.amax(dim=-1, keepdim=True)  # b, max_num_obj

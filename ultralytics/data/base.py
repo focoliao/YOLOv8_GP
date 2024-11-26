@@ -176,7 +176,7 @@ class BaseDataset(Dataset):
                         self.ims[j], self.im_hw0[j], self.im_hw[j] = None, None, None
 
             return im, (h0, w0), im.shape[:2]
-
+        
         return self.ims[i], self.im_hw0[i], self.im_hw[i]
 
     def cache_images(self):
@@ -260,6 +260,7 @@ class BaseDataset(Dataset):
             label["resized_shape"][0] / label["ori_shape"][0],
             label["resized_shape"][1] / label["ori_shape"][1],
         )  # for evaluation
+        
         if self.rect:
             label["rect_shape"] = self.batch_shapes[self.batch[index]]
         return self.update_labels_info(label)

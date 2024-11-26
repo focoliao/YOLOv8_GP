@@ -172,7 +172,7 @@ class BaseValidator:
                 batch = self.preprocess(batch)
 
             # Inference
-            with dt[1]:
+            with dt[1]:          
                 preds = model(batch["img"], augment=augment)
 
             # Loss

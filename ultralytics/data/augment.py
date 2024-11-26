@@ -2049,8 +2049,8 @@ class Format:
             )
         # NOTE: need to normalize obb in xywhr format for width-height consistency
         if self.normalize:
-            labels["bboxes"][:, [0, 2]] /= w
-            labels["bboxes"][:, [1, 3]] /= h
+            labels["bboxes"][:, [0, 2, 4, 6, 8, 10, 12, 14]] /= w    # 4 --> 16
+            labels["bboxes"][:, [1, 3, 5, 7, 9, 11, 13, 15]] /= h    # 4 --> 16
         # Then we can use collate_fn
         if self.batch_idx:
             labels["batch_idx"] = torch.zeros(nl)

@@ -22,6 +22,7 @@ def _ntuple(n):
 
 to_2tuple = _ntuple(2)
 to_4tuple = _ntuple(4)
+to_16tuple = _ntuple(16)  # @foco added for 4 --> 16
 
 # `xyxy` means left top and right bottom
 # `xywh` means center x, center y and width, height(YOLO format)
@@ -56,7 +57,7 @@ class Bboxes:
         self.format = format
         # self.normalized = normalized
 
-    def convert(self, format):
+    def convert(self, format):  # 4 --> 16
         """Converts bounding box format from one type to another."""
         assert format in _formats, f"Invalid bounding box format: {format}, format must be one of {_formats}"
         if self.format == format:
@@ -70,8 +71,11 @@ class Bboxes:
         self.bboxes = func(self.bboxes)
         self.format = format
 
-    def areas(self):
+    def areas(self):        # 从2D改3D较为复杂，且暂时没使用到，未做修改
         """Return box areas."""
+        '''
+        # @foco : 可能要修改，待办
+        '''
         return (
             (self.bboxes[:, 2] - self.bboxes[:, 0]) * (self.bboxes[:, 3] - self.bboxes[:, 1])  # format xyxy
             if self.format == "xyxy"
@@ -94,7 +98,7 @@ class Bboxes:
     #     self.bboxes[:, 1::2] /= h
     #     self.normalized = True
 
-    def mul(self, scale):
+    def mul(self, scale):   # 4 --> 16
         """
         Multiply bounding box coordinates by scale factor(s).
 
@@ -103,15 +107,30 @@ class Bboxes:
                 If int, the same scale is applied to all coordinates.
         """
         if isinstance(scale, Number):
-            scale = to_4tuple(scale)
+            scale = to_16tuple(scale)
         assert isinstance(scale, (tuple, list))
-        assert len(scale) == 4
+        assert len(scale) == 16
+        '''
+        # @foco 4 --> 16
+        '''
         self.bboxes[:, 0] *= scale[0]
         self.bboxes[:, 1] *= scale[1]
         self.bboxes[:, 2] *= scale[2]
         self.bboxes[:, 3] *= scale[3]
+        self.bboxes[:, 4] *= scale[4]
+        self.bboxes[:, 5] *= scale[5]
+        self.bboxes[:, 6] *= scale[6]
+        self.bboxes[:, 7] *= scale[7]
+        self.bboxes[:, 8] *= scale[8]
+        self.bboxes[:, 9] *= scale[9]
+        self.bboxes[:, 10] *= scale[10]
+        self.bboxes[:, 11] *= scale[11]
+        self.bboxes[:, 12] *= scale[12]
+        self.bboxes[:, 13] *= scale[13]
+        self.bboxes[:, 14] *= scale[14]
+        self.bboxes[:, 15] *= scale[15]
 
-    def add(self, offset):
+    def add(self, offset):  # 4 --> 16
         """
         Add offset to bounding box coordinates.
 
@@ -119,14 +138,29 @@ class Bboxes:
             offset (int | tuple | list): Offset(s) for four coordinates.
                 If int, the same offset is applied to all coordinates.
         """
+        '''
+        # @foco 做了大量修改， 满足 4 --> 16
+        '''
         if isinstance(offset, Number):
-            offset = to_4tuple(offset)
+            offset = to_16tuple(offset)     # 4 --> 16
         assert isinstance(offset, (tuple, list))
-        assert len(offset) == 4
+        assert len(offset) == 16    # 4 --> 16
         self.bboxes[:, 0] += offset[0]
         self.bboxes[:, 1] += offset[1]
         self.bboxes[:, 2] += offset[2]
         self.bboxes[:, 3] += offset[3]
+        self.bboxes[:, 4] += offset[4]
+        self.bboxes[:, 5] += offset[5]
+        self.bboxes[:, 6] += offset[6]
+        self.bboxes[:, 7] += offset[7]
+        self.bboxes[:, 8] += offset[8]
+        self.bboxes[:, 9] += offset[9]
+        self.bboxes[:, 10] += offset[10]
+        self.bboxes[:, 11] += offset[11]
+        self.bboxes[:, 12] += offset[12]
+        self.bboxes[:, 13] += offset[13]
+        self.bboxes[:, 14] += offset[14]
+        self.bboxes[:, 15] += offset[15]
 
     def __len__(self):
         """Return the number of boxes."""
@@ -239,9 +273,9 @@ class Instances:
         """Calculate the area of bounding boxes."""
         return self._bboxes.areas()
 
-    def scale(self, scale_w, scale_h, bbox_only=False):
+    def scale(self, scale_w, scale_h, bbox_only=False): # 4 --> 16
         """Similar to denormalize func but without normalized sign."""
-        self._bboxes.mul(scale=(scale_w, scale_h, scale_w, scale_h))
+        self._bboxes.mul(scale=(scale_w, scale_h, scale_w, scale_h, scale_w, scale_h, scale_w, scale_h, scale_w, scale_h, scale_w, scale_h, scale_w, scale_h, scale_w, scale_h))        # 4 --> 16
         if bbox_only:
             return
         self.segments[..., 0] *= scale_w
@@ -250,11 +284,11 @@ class Instances:
             self.keypoints[..., 0] *= scale_w
             self.keypoints[..., 1] *= scale_h
 
-    def denormalize(self, w, h):
+    def denormalize(self, w, h):    # 4 --> 16
         """Denormalizes boxes, segments, and keypoints from normalized coordinates."""
         if not self.normalized:
             return
-        self._bboxes.mul(scale=(w, h, w, h))
+        self._bboxes.mul(scale=(w, h, w, h, w, h, w, h, w, h, w, h, w, h, w, h)) # 4--> 16
         self.segments[..., 0] *= w
         self.segments[..., 1] *= h
         if self.keypoints is not None:
@@ -262,11 +296,11 @@ class Instances:
             self.keypoints[..., 1] *= h
         self.normalized = False
 
-    def normalize(self, w, h):
+    def normalize(self, w, h):  # 4 --> 16
         """Normalize bounding boxes, segments, and keypoints to image dimensions."""
         if self.normalized:
             return
-        self._bboxes.mul(scale=(1 / w, 1 / h, 1 / w, 1 / h))
+        self._bboxes.mul(scale=(1 / w, 1 / h, 1 / w, 1 / h, 1 / w, 1 / h, 1 / w, 1 / h, 1 / w, 1 / h, 1 / w, 1 / h, 1 / w, 1 / h, 1 / w, 1 / h))        # 4 --> 16
         self.segments[..., 0] /= w
         self.segments[..., 1] /= h
         if self.keypoints is not None:
@@ -274,10 +308,10 @@ class Instances:
             self.keypoints[..., 1] /= h
         self.normalized = True
 
-    def add_padding(self, padw, padh):
+    def add_padding(self, padw, padh):  # 4 --> 16
         """Handle rect and mosaic situation."""
         assert not self.normalized, "you should add padding with absolute coordinates."
-        self._bboxes.add(offset=(padw, padh, padw, padh))
+        self._bboxes.add(offset=(padw, padh, padw, padh, padw, padh, padw, padh, padw, padh, padw, padh, padw, padh, padw, padh))   # 4 --> 16
         self.segments[..., 0] += padw
         self.segments[..., 1] += padh
         if self.keypoints is not None:
@@ -312,9 +346,9 @@ class Instances:
             normalized=self.normalized,
         )
 
-    def flipud(self, h):
+    def flipud(self, h):    # 从2D改3D较为复杂，且暂时没使用到，未做修改
         """Flips the coordinates of bounding boxes, segments, and keypoints vertically."""
-        if self._bboxes.format == "xyxy":
+        if self._bboxes.format == "xyxy":   
             y1 = self.bboxes[:, 1].copy()
             y2 = self.bboxes[:, 3].copy()
             self.bboxes[:, 1] = h - y2
@@ -325,7 +359,7 @@ class Instances:
         if self.keypoints is not None:
             self.keypoints[..., 1] = h - self.keypoints[..., 1]
 
-    def fliplr(self, w):
+    def fliplr(self, w):    # 从2D改3D较为复杂，且暂时没使用到，未做修改
         """Reverses the order of the bounding boxes and segments horizontally."""
         if self._bboxes.format == "xyxy":
             x1 = self.bboxes[:, 0].copy()
@@ -338,7 +372,7 @@ class Instances:
         if self.keypoints is not None:
             self.keypoints[..., 0] = w - self.keypoints[..., 0]
 
-    def clip(self, w, h):
+    def clip(self, w, h):    # 从2D改3D较为复杂，且暂时没使用到，未做修改
         """Clips bounding boxes, segments, and keypoints values to stay within image boundaries."""
         ori_format = self._bboxes.format
         self.convert_bbox(format="xyxy")
