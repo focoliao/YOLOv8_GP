@@ -164,6 +164,7 @@ class BaseModel(nn.Module):
             else:
                 # 否则直接打印x的形状
                 print(f"-Layer {m.i} output shape: {x.shape}")
+            # foco 调试：结束
             '''
             y.append(x if m.i in self.save else None)  # save output
             if visualize:
@@ -172,8 +173,7 @@ class BaseModel(nn.Module):
                 embeddings.append(nn.functional.adaptive_avg_pool2d(x, (1, 1)).squeeze(-1).squeeze(-1))  # flatten
                 if m.i == max(embed):
                     return torch.unbind(torch.cat(embeddings, 1), dim=0)
-        # print(f'--->BaseModel _predict_once output len(x):{len(x)}')
-        # print(f'--->BaseModel _predict_once output x[0].shape:{x[0].shape}')
+
         return x
 
     def _predict_augment(self, x):

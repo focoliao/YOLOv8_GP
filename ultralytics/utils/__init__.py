@@ -904,6 +904,7 @@ class TryExcept(contextlib.ContextDecorator):
         """Defines behavior when exiting a 'with' block, prints error message if necessary."""
         if self.verbose and value:
             print(emojis(f"{self.msg}{': ' if self.msg else ''}{value}"))
+        # a = 1/0    # 调试小trick
         return True
 
 

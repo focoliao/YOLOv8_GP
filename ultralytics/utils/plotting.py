@@ -879,8 +879,10 @@ def plot_labels(boxes, cls, names=(), save_dir=Path(""), on_plot=None):
     LOGGER.info(f"Plotting labels to {save_dir / 'labels.jpg'}... ")
     nc = int(cls.max() + 1)  # number of classes
     boxes = boxes[:1000000]  # limit to 1M boxes
-    x = pandas.DataFrame(boxes, columns=["x", "y", "width", "height"])
-
+    tboxes = ops.cbboxes2bboxes(boxes)     # 自定义cbboxes2bboxes
+    tboxes_xywh = ops.xyxy2xywh_2d(tboxes)  # 使用老的xyxy2xywh
+    x = pandas.DataFrame(tboxes_xywh, columns=["x", "y", "width", "height"])  # 从cboxes转换为boxes，所以不用改了
+    
     # Seaborn correlogram
     seaborn.pairplot(x, corner=True, diag_kind="auto", kind="hist", diag_kws=dict(bins=50), plot_kws=dict(pmax=0.9))
     plt.savefig(save_dir / "labels_correlogram.jpg", dpi=200)
@@ -901,10 +903,10 @@ def plot_labels(boxes, cls, names=(), save_dir=Path(""), on_plot=None):
     seaborn.histplot(x, x="width", y="height", ax=ax[3], bins=50, pmax=0.9)
 
     # Rectangles
-    boxes[:, 0:2] = 0.5  # center
-    boxes = ops.xywh2xyxy(boxes) * 1000
+    tboxes_xywh[:, 0:2] = 0.5  # center     @foco修改了
+    tboxes_xyxy = ops.xywh2xyxy_2d(tboxes_xywh) * 1000
     img = Image.fromarray(np.ones((1000, 1000, 3), dtype=np.uint8) * 255)
-    for cls, box in zip(cls[:500], boxes[:500]):
+    for cls, box in zip(cls[:500], tboxes_xyxy[:500]):
         ImageDraw.Draw(img).rectangle(box, width=1, outline=colors(cls))  # plot
     ax[1].imshow(img)
     ax[1].axis("off")

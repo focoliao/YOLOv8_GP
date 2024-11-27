@@ -267,7 +267,7 @@ def non_max_suppression(
         else:
             prediction = torch.cat((newbbox2xyxy(prediction[..., :16]), prediction[..., 4:]), dim=-1)  # xywh to xyxy 从4修改为16，从16个点中提取xyxy
         '''
-            
+       
     t = time.time()
     output = [torch.zeros((0, 18 + nm), device=prediction.device)] * bs      # 这个地方修改: xyxy,conf,cls ==> 16,conf,cls
     for xi, x in enumerate(prediction):  # image index, image inference
@@ -275,7 +275,7 @@ def non_max_suppression(
         # x[((x[:, 2:4] < min_wh) | (x[:, 2:4] > max_wh)).any(1), 4] = 0  # width-height
         x = x[xc[xi]]  # confidence
 
-        # Cat apriori labels if autolabelling       # 这一段好像不需要
+        # Cat apriori labels if autolabelling       # 这一段好像不需要，没有做修改
         if labels and len(labels[xi]) and not rotated:
             lb = labels[xi]
             v = torch.zeros((len(lb), nc + nm + 4), device=x.device)    # 4 --> 16
@@ -355,10 +355,19 @@ def newbbox2xyxy(newbbox):
     newxyxy = torch.stack((x_min,y_min,x_max,y_max), dim=-1)
     return newxyxy
 
+
 def cbboxes2bboxes(cbboxes):
     '''
     foco增加：从16个点中，找到x_min,x_max,y_min,y_max，可认为是目标的xyxy
     '''
+    # 做list兼容
+    if isinstance(cbboxes, list):
+        # 如果输入是 list，则转换为 torch.Tensor
+        is_list = True
+        cbboxes = torch.tensor(cbboxes, dtype=torch.float32)
+    else:
+        is_list = False
+
     assert cbboxes.shape[-1] == 16, f"input shape last dimension expected 16 but input shape is {cbboxes.shape}"  # 4个点改成16个点
     y = cbboxes.clone() if isinstance(cbboxes, torch.Tensor) else cbboxes.copy()  # foco修改
     # 将 16个点的box，转换成4个点的box：16个点分8组
@@ -366,13 +375,30 @@ def cbboxes2bboxes(cbboxes):
     # 提取每组的第一个元素为 x 坐标，第二个元素为 y 坐标
     x_coords = xys_tmp[...,0]  # 每组的 x 坐标
     y_coords = xys_tmp[...,1]  # 每组的 y 坐标
+    '''
+    # 使用下面的方法替代了
     # 计算 x 坐标和 y 坐标的最小值和最大值
     x_min = x_coords.min(dim=-1)[0]  # 最小值 x1
     x_max = x_coords.max(dim=-1)[0]  # 最大值 x2
     y_min = y_coords.min(dim=-1)[0]  # 最小值 y1
     y_max = y_coords.max(dim=-1)[0]  # 最大值 y2
     bboxes = torch.stack((x_min,y_min,x_max,y_max), dim=-1)
+    '''
+    # 计算 x 和 y 坐标的最小值和最大值
+    x_min = x_coords.min(dim=-1)[0] if isinstance(cbboxes, torch.Tensor) else x_coords.min(axis=-1)
+    x_max = x_coords.max(dim=-1)[0] if isinstance(cbboxes, torch.Tensor) else x_coords.max(axis=-1)
+    y_min = y_coords.min(dim=-1)[0] if isinstance(cbboxes, torch.Tensor) else y_coords.min(axis=-1)
+    y_max = y_coords.max(dim=-1)[0] if isinstance(cbboxes, torch.Tensor) else y_coords.max(axis=-1)
+
+    # 堆叠 x_min, y_min, x_max, y_max 得到最终的 bbox
+    bboxes = torch.stack((x_min, y_min, x_max, y_max), dim=-1) if isinstance(cbboxes, torch.Tensor) else np.stack((x_min, y_min, x_max, y_max), axis=-1)
+
+    # 如果输入是 list，则将输出转换为 list
+    if is_list:
+        bboxes = bboxes.tolist()  # 将 Tensor 转换为 list
+
     return bboxes
+
 
 def clip_boxes(boxes, shape):
     """
@@ -507,7 +533,7 @@ def xywh2xyxy(x):
     '''
     修改：输入数据直接是8个点，所以不需要转换（虽然让程序以为输入时为xywh）
     '''
-    assert x.shape[-1] == 16, f"input shape last dimension expected 4 but input shape is {x.shape}"      # 从4个点改成16个点
+    assert x.shape[-1] == 16, f"input shape last dimension expected 16 but input shape is {x.shape}"      # 从4个点改成16个点
     y = x.clone() if isinstance(x, torch.Tensor) else x.copy()  # foco修改
     '''
     # 不用做数据转换，全部注释掉
@@ -518,6 +544,45 @@ def xywh2xyxy(x):
     y[..., 2:] = xy + wh  # bottom right xy
     '''
     return y        # 由于不进行转换，直接输出x即可(x已经是张量)。
+
+def xyxy2xywh_2d(x):
+    """
+    Convert bounding box coordinates from (x1, y1, x2, y2) format to (x, y, width, height) format where (x1, y1) is the
+    top-left corner and (x2, y2) is the bottom-right corner.
+
+    Args:
+        x (np.ndarray | torch.Tensor): The input bounding box coordinates in (x1, y1, x2, y2) format.
+
+    Returns:
+        y (np.ndarray | torch.Tensor): The bounding box coordinates in (x, y, width, height) format.
+    """
+    assert x.shape[-1] == 4, f"input shape last dimension expected 4 but input shape is {x.shape}"
+    y = torch.empty_like(x) if isinstance(x, torch.Tensor) else np.empty_like(x)  # faster than clone/copy
+    y[..., 0] = (x[..., 0] + x[..., 2]) / 2  # x center
+    y[..., 1] = (x[..., 1] + x[..., 3]) / 2  # y center
+    y[..., 2] = x[..., 2] - x[..., 0]  # width
+    y[..., 3] = x[..., 3] - x[..., 1]  # height
+    return y
+
+
+def xywh2xyxy_2d(x):
+    """
+    Convert bounding box coordinates from (x, y, width, height) format to (x1, y1, x2, y2) format where (x1, y1) is the
+    top-left corner and (x2, y2) is the bottom-right corner. Note: ops per 2 channels faster than per channel.
+
+    Args:
+        x (np.ndarray | torch.Tensor): The input bounding box coordinates in (x, y, width, height) format.
+
+    Returns:
+        y (np.ndarray | torch.Tensor): The bounding box coordinates in (x1, y1, x2, y2) format.
+    """
+    assert x.shape[-1] == 4, f"input shape last dimension expected 4 but input shape is {x.shape}"
+    y = torch.empty_like(x) if isinstance(x, torch.Tensor) else np.empty_like(x)  # faster than clone/copy
+    xy = x[..., :2]  # centers
+    wh = x[..., 2:] / 2  # half width-height
+    y[..., :2] = xy - wh  # top left xy
+    y[..., 2:] = xy + wh  # bottom right xy
+    return y
 
 
 def xywhn2xyxy(x, w=640, h=640, padw=0, padh=0):
@@ -534,7 +599,7 @@ def xywhn2xyxy(x, w=640, h=640, padw=0, padh=0):
         y (np.ndarray | torch.Tensor): The coordinates of the bounding box in the format [x1, y1, x2, y2] where
             x1,y1 is the top-left corner, x2,y2 is the bottom-right corner of the bounding box.
     """
-    assert x.shape[-1] == 16, f"input shape last dimension expected 4 but input shape is {x.shape}"     # 4 --> 16
+    assert x.shape[-1] == 16, f"input shape last dimension expected 16 but input shape is {x.shape}"     # 4 --> 16
     y = torch.empty_like(x) if isinstance(x, torch.Tensor) else np.empty_like(x)  # faster than clone/copy
     y[..., [0, 2, 4, 6, 8, 10, 12, 14]] = w * x[..., [0, 2, 4, 6, 8, 10, 12, 14]] + padw    # 4 --> 16
     y[..., [1, 3, 5, 7, 9, 11, 13, 15]] = h * x[..., [1, 3, 5, 7, 9, 11, 13, 15]] + padh    # 4 --> 16
