@@ -50,7 +50,7 @@ class GPLoss(nn.Module):
         translation_loss = (translation_loss*weight).sum() / target_scores_sum
 
         # Total loss
-        so_called_iou_loss = 0.001 * mse_loss +  angle_loss + translation_loss
+        so_called_iou_loss = 0.01 * mse_loss +  angle_loss + translation_loss
 
         # DFL loss: 这部分感觉可能要修改，待办
         if self.dfl_loss:
