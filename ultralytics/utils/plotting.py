@@ -345,14 +345,15 @@ class Annotator:
                             fontScale=0.4, color=(255, 255, 255), thickness=1, lineType=cv2.LINE_AA)  # 标注顶点
 
                 # 3. 绘制多边形
-                pts = np.array(quads, dtype=np.int32).reshape((-1, 1, 2))
+                quads_bottom = quads[0:4]
+                pts = np.array(quads_bottom, dtype=np.int32).reshape((-1, 1, 2))
                 cv2.polylines(self.im, [pts], isClosed=True, color=(255, 0, 0), thickness=1)  # 蓝色多边形
                 '''
                 for i in range(len(quads)):
                     # 绘制每个顶点
                     self.draw.text(quads[i], text=f'Vertex {i+1}')
                 self.draw.line(quads, fill='blue', width=1)  # 绘制多边形
-                '''
+                
                 # 绘制根据8个点的外接矩形
                 x_min = min(box[::2])
                 x_max = max(box[::2])
@@ -362,6 +363,7 @@ class Annotator:
                 rect_pts = np.array(quads_rect, dtype=np.int32).reshape((-1, 1, 2))
                 cv2.polylines(self.im, [rect_pts], isClosed=True, color=(0, 0, 255), thickness=1)  # 红色矩形
                 # foco ends
+                '''
 
             if label:
                 w, h = cv2.getTextSize(label, 0, fontScale=self.sf, thickness=self.tf)[0]  # text width, height
