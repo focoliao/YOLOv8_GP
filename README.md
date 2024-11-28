@@ -108,6 +108,7 @@
 - 我们相关的是检测，检测的后处理部分在:ultralytics/models/yolo/detect/predict.py DetectionPredictor postprocess
 - 修改非极大值抑制：ultralytics/utils/ops.py non_max_suppression
 - 主要原理是：从16个点中，找到边界xyxy，自定义函数, 还是使用xyxy的NMS，最后输出时，再把结果拼接回来
+- 迭代NMS：不是用iou做判断，而是用接地点的重叠来计算，可以设置很低的重叠阈值
 #### 2.4 修改配置文件
 - 新建数据yaml文件，见foco/configs/yolov8_gp_data.yaml。classes聚焦在道路物体上，不需要原始那么多分类。并按照自己定义的分类设置数据
 - 新建训练yaml文件，见见foco/configs/yolov8_gp.yaml。
@@ -125,3 +126,12 @@
 ### 3. 测试新代码
 #### 3.1 测试train的pipeline
 #### 3.2 测试predict
+
+## 训练经验
+1. loss中，MSE Loss的权重应该调，按照经验，MSE Loss控制着点的精度，如果发现比较歪，可以修改此参数
+- 尝试过1，0.001，0.01，0.1。结果表明，越小，框越不规整
+2. loss中，可以尝试前面的epoch只用MSE Loss，后面再加入angle和translation
+- MSE Loss能快速将立体框成型
+- angle和translation可以精修
+3. default.yaml中，修改iou，用于NMS的 iou threshold
+- 值越大，保留的结果越多，尝试过从0.1到1.0的所有-1次方值

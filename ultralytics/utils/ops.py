@@ -312,10 +312,12 @@ def non_max_suppression(
             boxes = torch.cat((x[:, :2] + c, x[:, 2:4], x[:, -1:]), dim=-1)  # xywhr
             i = nms_rotated(boxes, scores, iou_thres)
         else:
+            # 算法一：用立体框的外接框，以iou方法进行NMS计算
             boxes = x[:, :4] + c  # boxes (offset by class)    4 --> 16 保持原样，没有修改
             i = torchvision.ops.nms(boxes, scores, iou_thres)  # NMS
-        i = i[:max_det]  # limit detections
+            # 算法二：用立体框的接地框部分，进行overlap方法进行NMS计算 TODO
 
+        i = i[:max_det]  # limit detections
         # # Experimental
         # merge = False  # use merge-NMS
         # if merge and (1 < n < 3E3):  # Merge NMS (boxes merged using weighted mean)

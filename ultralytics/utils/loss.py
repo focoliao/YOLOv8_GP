@@ -50,9 +50,9 @@ class GPLoss(nn.Module):
         translation_loss = (translation_loss*weight).sum() / target_scores_sum
 
         # Total loss
-        so_called_iou_loss = 0.01 * mse_loss +  angle_loss + translation_loss
+        so_called_iou_loss = 0.1 * mse_loss +  angle_loss + translation_loss    # 0.1是个不错的值
 
-        # DFL loss: 这部分感觉可能要修改，待办
+        # DFL loss: 这部分感觉可能要修改，待办 @foco 实际训练证明，没问题
         if self.dfl_loss:
             target_ltrb = bbox2dist(anchor_points, target_cbboxes, self.dfl_loss.reg_max - 1)
             loss_dfl = self.dfl_loss(pred_dist[fg_mask].view(-1, self.dfl_loss.reg_max), target_ltrb[fg_mask]) * weight
