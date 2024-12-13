@@ -34,3 +34,4 @@ test_percent: 0
 
 image_size_MAXX: 1080
 image_size_MAXY: 1080
+rect_area_threshold: 400   # 外接框的像素大小阈值 400是个不错的值

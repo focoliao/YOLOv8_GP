@@ -27,7 +27,7 @@ def main():
         config_dict = yaml.safe_load(file)
     config = misc_tools.dict_to_namespace(config_dict)
 
-    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # 检查并打印所用device
     if torch.cuda.is_available():
         print("----GPU信息检查")

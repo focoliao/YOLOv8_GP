@@ -3,7 +3,7 @@ author: 'Foco Liao'
 
 # Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
 
-checkpoint: best.pt
+checkpoint: yolov8n.pt
 model_yaml: yolov8n.yaml
 data_yaml: ../configs/yolov8_gp_data.yaml
 epochs: 1

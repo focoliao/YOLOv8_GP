@@ -4,6 +4,7 @@ __author__ = 'Foco Liao'
 #加载开源包
 import sys
 import os
+os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
 import yaml
 import torch
 
@@ -29,17 +30,21 @@ def main():
         config_dict = yaml.safe_load(file)
     config = misc_tools.dict_to_namespace(config_dict)
 
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    # 检查并打印所用device
-    if torch.cuda.is_available():
-        print("----GPU信息检查")
+    # 指定设备
+    print("\033[1;34m加速硬件信息检查\033[0m")
+    if torch.backends.mps.is_available():   # 考虑到mac因素，使用m芯片进行训练
+        # device = torch.device("mps")  # 指定 MPS 设备 实际发现特别慢
+        device = torch.device("cpu")  # 回退到 CPU
+        print("- 使用Apple Silicon芯片加速")
+    elif torch.cuda.is_available():
+        device = torch.device("cuda:0")  # 指定Nvidia GPU 0
         index = int(device.index)
+        print("- 使用GPU加速")
         print("- GPU索引号：",index)
         print("- GPU名称：",torch.cuda.get_device_name(index))
     else:
-        print("----GPU信息检查----")
-        print("- GPU是否可用：否")
-        print("- 使用的设备：CPU")
+        device = torch.device("cpu")  # 回退到 CPU
+        print("- 使用CPU加速")
 
     # 加载模型
     model = YOLO(config.model_yaml).load(config.checkpoint).to(device)

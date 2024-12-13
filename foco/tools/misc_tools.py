@@ -52,7 +52,7 @@ def copy_file(source_dir, target_dir, file_name):
         os.makedirs(target_dir)
     source_file = os.path.join(source_dir, file_name)
     target_file = os.path.join(target_dir, file_name)
-    shutil.copy2(source_file, target_file)
+    shutil.copy(source_file, target_file)
 
 def save_to_txt_file(file_path, file_name, content):
     if not os.path.exists(file_path):
