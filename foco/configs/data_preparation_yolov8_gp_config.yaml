@@ -2,30 +2,30 @@
 author: 'Foco Liao'
 
 original_data_path: #原始数据路径
-  # image: /home/foco/workspace/DataSets/OriginalData/YOLOv8GP/images/  # for linux
-  # label: /home/foco/workspace/DataSets/OriginalData/YOLOv8GP/labels/  # for linux
-  image: /Users/foco/Desktop/work/workspace/DataSets/OriginalData/YOLOv8GP/images/    # for mac
-  label: /Users/foco/Desktop/work/workspace/DataSets/OriginalData/YOLOv8GP/labels/    # for mac
+  image: /home/foco/workspace/DataSets/OriginalData/YOLOv8GP/images/  # for linux
+  label: /home/foco/workspace/DataSets/OriginalData/YOLOv8GP/labels/  # for linux
+  # image: /Users/foco/Desktop/work/workspace/DataSets/OriginalData/YOLOv8GP/images/    # for mac
+  # label: /Users/foco/Desktop/work/workspace/DataSets/OriginalData/YOLOv8GP/labels/    # for mac
 destination_data_path:   #目标数据路径
   train:
-    # image: /home/foco/workspace/DataSets/YOLOv8GP/images/train/  # for linux
-    # label: /home/foco/workspace/DataSets/YOLOv8GP/labels/train/  # for linux
-    image: /Users/foco/Desktop/work/workspace/DataSets/YOLOv8GP/images/train/    # for mac
-    label: /Users/foco/Desktop/work/workspace/DataSets/YOLOv8GP/labels/train/    # for mac
+    image: /home/foco/workspace/DataSets/YOLOv8GP/images/train/  # for linux
+    label: /home/foco/workspace/DataSets/YOLOv8GP/labels/train/  # for linux
+    # image: /Users/foco/Desktop/work/workspace/DataSets/YOLOv8GP/images/train/    # for mac
+    # label: /Users/foco/Desktop/work/workspace/DataSets/YOLOv8GP/labels/train/    # for mac
   val:
-    # image: /home/foco/workspace/DataSets/YOLOv8GP/images/val/  # for linux
-    # label: /home/foco/workspace/DataSets/YOLOv8GP/labels/val/  # for linux
-    image: /Users/foco/Desktop/work/workspace/DataSets/YOLOv8GP/images/val/    # for mac
-    label: /Users/foco/Desktop/work/workspace/DataSets/YOLOv8GP/labels/val/    # for mac
+    image: /home/foco/workspace/DataSets/YOLOv8GP/images/val/  # for linux
+    label: /home/foco/workspace/DataSets/YOLOv8GP/labels/val/  # for linux
+    # image: /Users/foco/Desktop/work/workspace/DataSets/YOLOv8GP/images/val/    # for mac
+    # label: /Users/foco/Desktop/work/workspace/DataSets/YOLOv8GP/labels/val/    # for mac
   test:
-    # image: /home/foco/workspace/DataSets/YOLOv8GP/images/test/  # for linux
-    image: /Users/foco/Desktop/work/workspace/DataSets/YOLOv8GP/images/test/    # for mac
+    image: /home/foco/workspace/DataSets/YOLOv8GP/images/test/  # for linux
+    # image: /Users/foco/Desktop/work/workspace/DataSets/YOLOv8GP/images/test/    # for mac
 
-# image_paths_dir: /home/foco/workspace/DataSets/YOLOv8GP/  # for linux
-image_paths_dir: /Users/foco/Desktop/work/workspace/DataSets/YOLOv8GP/    # for mac
+image_paths_dir: /home/foco/workspace/DataSets/YOLOv8GP/  # for linux
+# image_paths_dir: /Users/foco/Desktop/work/workspace/DataSets/YOLOv8GP/    # for mac
 train_image_paths_name: train_image_paths.txt
-# labels_dir: /home/foco/workspace/DataSets/FocoMonoGP/  # for linux
-labels_dir: /Users/foco/Desktop/work/workspace/DataSets/YOLOv8GP/    # for mac
+labels_dir: /home/foco/workspace/DataSets/FocoMonoGP/  # for linux
+# labels_dir: /Users/foco/Desktop/work/workspace/DataSets/YOLOv8GP/    # for mac
 train_lables_name: train_labels.txt
 
 trainval_percent: 1

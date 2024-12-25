@@ -98,6 +98,7 @@ class Detect(nn.Module):
             box = x_cat[:, : self.reg_max * 16]     # 4 --> 16
             cls = x_cat[:, self.reg_max * 16 :]     # 4 --> 16
         else:
+            # print(f'==>1x_cat.shape:{x_cat.shape}')
             box, cls = x_cat.split((self.reg_max * 16, self.nc), 1)     # 4 --> 16
 
         if self.export and self.format in {"tflite", "edgetpu"}:

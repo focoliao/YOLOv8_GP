@@ -2,10 +2,10 @@
 author: 'Foco Liao'
 
 # Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
-# test_images_dir: /home/foco/workspace/DataSets/YOLOv8GP/test/images/  # for Linux
-# test_labels_dir: /home/foco/workspace/DataSets/YOLOv8GP/test/labels/  # for Linux
-test_images_dir: /Users/foco/Desktop/work/workspace/DataSets/YOLOv8GP/test/images/  # for Mac
-test_labels_dir: /Users/foco/Desktop/work/workspace/DataSets/YOLOv8GP/test/labels/  # for Mac
+test_images_dir: /home/foco/workspace/DataSets/YOLOv8GP/test/images/  # for Linux
+test_labels_dir: /home/foco/workspace/DataSets/YOLOv8GP/test/labels/  # for Linux
+# test_images_dir: /Users/foco/Desktop/work/workspace/DataSets/YOLOv8GP/test/images/  # for Mac
+# test_labels_dir: /Users/foco/Desktop/work/workspace/DataSets/YOLOv8GP/test/labels/  # for Mac
 predict_base_save_dir: /runs/
 increasing_dir_prefix: predict
 checkpoint: best.pt

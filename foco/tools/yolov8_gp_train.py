@@ -46,11 +46,13 @@ def main():
         device = torch.device("cpu")  # 回退到 CPU
         print("- 使用CPU加速")
 
-    # 加载模型
-    model = YOLO(config.model_yaml).load(config.checkpoint).to(device)
-
-    # 训练
-    model.train(data=config.data_yaml, epochs=config.epochs, amp=False)
+    
+    if config.new:
+        model = YOLO(config.model_yaml).load(config.checkpoint).to(device)      # 加载模型
+        model.train(data=config.data_yaml, epochs=50, batch=8, amp=False, save_period=1, resume=False)   # 训练
+    else:   
+        model = YOLO(config.resume_checkpoint).to(device)      # 加载模型
+        model.train(data=config.data_yaml, batch=8, amp=True, save_period=1, resume=True)       # 训练
 
 
 if __name__ == '__main__':
