@@ -147,6 +147,9 @@ runs/
 wandb/
 .DS_Store
 
+# foco configs
+foco/configs/
+
 # Neural Network weights -----------------------------------------------------------------------------------------------
 weights/
 *.weights
