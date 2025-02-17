@@ -6,4 +6,4 @@ test_images_dir: /home/foco/workspace/DataSets/YOLOv8GP/test_original/test/image
 test_labels_dir: /home/foco/workspace/DataSets/YOLOv8GP/test_original/test/labels/
 predict_base_save_dir: /runs/
 increasing_dir_prefix: predict
-checkpoint: yolov8n.pt
+checkpoint: epoch6.pt

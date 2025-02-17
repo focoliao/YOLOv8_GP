@@ -49,8 +49,15 @@ def main():
     
     if config.new:
         model = YOLO(config.model_yaml).load(config.checkpoint).to(device)      # 加载模型
-        model.train(data=config.data_yaml, epochs=50, batch=8, amp=False, save_period=1, resume=False)   # 训练
-    else:   
+        model.train(data=config.data_yaml, epochs=config.preset_tatal_epochs, batch=8, amp=False, save_period=1, resume=False)   # 训练
+    else:
+        # 加载检查点文件
+        checkpoint = torch.load(config.resume_checkpoint)
+        # 修改总轮数为新的
+        checkpoint["train_args"]["epochs"] = config.resume_tatal_epochs        # 设置为resume时的完成轮数
+        # 保存修改后的检查点文件
+        torch.save(checkpoint, config.resume_checkpoint)
+        # 加载模型并训练
         model = YOLO(config.resume_checkpoint).to(device)      # 加载模型
         model.train(data=config.data_yaml, batch=8, amp=True, save_period=1, resume=True)       # 训练
 

@@ -35,18 +35,21 @@ class GPLoss(nn.Module):
         mse_loss_top = ((pred_vertices_top - target_vertices_top) ** 2).mean(dim=[1, 2])  # 逐样本计算 MSE
         mse_loss_bottom = ((pred_vertices_bottom - target_vertices_bottom) ** 2).mean(dim=[1, 2])  # 逐样本计算 MSE
         mse_loss = mse_loss_top + mse_loss_bottom
+        # mse_loss = mse_loss_bottom
         mse_loss = (mse_loss * weight).sum() / target_scores_sum
         
         # Angle loss
         angle_loss_top = self.angle_loss(pred_vertices_top, target_vertices_top)
         angle_loss_bottom = self.angle_loss(pred_vertices_bottom, target_vertices_bottom)
         angle_loss = angle_loss_top + angle_loss_bottom
+        # angle_loss = angle_loss_bottom
         angle_loss = (angle_loss * weight).sum() / target_scores_sum
 
         # Translation loss
         translation_loss_top = self.translation_loss(pred_vertices_top, target_vertices_top)
         translation_loss_bottom = self.translation_loss(pred_vertices_bottom, target_vertices_bottom)
         translation_loss = translation_loss_top + translation_loss_bottom
+        # translation_loss = translation_loss_bottom
         translation_loss = (translation_loss*weight).sum() / target_scores_sum
 
         # Total loss

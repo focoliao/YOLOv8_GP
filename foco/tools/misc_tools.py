@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import shutil
 import re
 import pandas as pd
-
+import cv2
 
 
 def dict_to_namespace(d):
@@ -38,6 +38,26 @@ def get_files_in_directory(directory):
     files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
     
     return file_count, files
+
+def resize_and_copy_image(source_dir, target_dir, file_name, resize_value=(640,640)):
+    #检查源目录是否存在，如果没有则报错返回
+    if not os.path.exists(source_dir):
+        raise ValueError(f"The directory {source_dir} does not exists.")
+        return
+    if not os.path.isdir(source_dir):
+        raise ValueError(f"The path {source_dir} is not a direcotry.")
+        return
+    #确保目标目录存在，如果不存在则创建
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
+    source_file = os.path.join(source_dir, file_name)
+    target_file = os.path.join(target_dir, file_name)
+    # 读取原始图像
+    image = cv2.imread(source_file)  # 替换为你原始图片的路径
+    # 使用 OpenCV 将图像大小调整为 640x640
+    resized_image = cv2.resize(image, resize_value)
+    # 保存调整后的图像
+    cv2.imwrite(target_file, resized_image)  # 保存为新的文件
 
 def copy_file(source_dir, target_dir, file_name):
     #检查源目录是否存在，如果没有则报错返回

@@ -40,6 +40,7 @@ def main():
         print("- 使用的设备：CPU")
 
     #加载模型
+    print(config.checkpoint)
     model = YOLO(config.checkpoint).to(device)
 
     # 推理并保存结果

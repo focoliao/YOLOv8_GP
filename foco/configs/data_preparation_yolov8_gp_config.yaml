@@ -32,6 +32,9 @@ trainval_percent: 1
 train_percent: 0.95
 test_percent: 0
 
-image_size_MAXX: 1080
-image_size_MAXY: 1080
-rect_area_threshold: 400   # 外接框的像素大小阈值 400是个不错的值
+image_size_MAXX: 1920   # 原始图片
+image_size_MAXY: 1080   # 原始图片
+resize_MAXX: 640    # resize图片
+resize_MAXY: 640    # resize图片
+rect_area_threshold: 0   # 外接框的像素大小阈值 400是个不错的值
+image_surfix: '.jpg'

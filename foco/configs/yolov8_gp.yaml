@@ -3,16 +3,17 @@ author: 'Foco Liao'
 
 # Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
 
-model_yaml: yolov8n.yaml
+
 data_yaml: ../configs/yolov8_gp_data.yaml
 save_period: 1
 
+new: False
 
 # First train
-checkpoint: yolov8n.pt
+checkpoint: yolov8m.pt    # yolov8n.pt yolov8s.pt yolov8m.pt yolov8l.pt yolov8x.pt
+model_yaml: yolov8m.yaml    # yolov8n.yaml yolov8s.yaml yolov8m.yaml yolov8l.yaml yolov8x.yaml
+preset_tatal_epochs: 200
 
 # Following resume: 
-
-resume_checkpoint: /home/foco/workspace/YOLOv8_GP/YOLOv8_GP/runs/detect/train9/weights/last.pt
-
-new: False
+resume_checkpoint: /home/foco/workspace/YOLOv8_GP/YOLOv8_GP/runs/detect/train9/weights/epoch115.pt
+resume_tatal_epochs: 200    # 建议与preset_tatal_epochs保持一致，如果需要提前停止，则可设置更小的值

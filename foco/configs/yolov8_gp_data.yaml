@@ -13,6 +13,10 @@ names:
   0: car
   1: bus
   2: truck
-  3: bicycle
+  3: van
+  #4: motorcyclist
+  #5: tricyclist
+  #6: cyclist
+  #7: pedestrian
 
 nc: 4

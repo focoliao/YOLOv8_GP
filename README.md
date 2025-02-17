@@ -124,8 +124,29 @@
 - 修改select_candidates_in_gts: 修改lt(坐上)和rb(右下)计算逻辑。ultralytics/utils/tal.py TaskAlignedAssigner select_candidates_in_gts
 - 修改了画图的内容，在ultralytics/utils/plotting.py
 ### 3. 测试新代码
-#### 3.1 测试train的pipeline
-#### 3.2 测试predict
+#### 3.1 数据准备
+- 数据处理分为两步：第一步是从开源等数据整理成yolov8_gp所需原始数据；第二步是将原始数据进行处理，满足train/val所要求的数据。
+- 外部数据，label保存为.txt文件，文件中多个标注，每个标注数据的格式如下：
+0 (510.3, 857.3) (516.1, 861.9) (500.6, 862.1) (494.1, 857.5) (510.1, 871.6) (493.8, 871.8) (500.4, 875.8) (516.0, 875.7)
+第一个数据为分类，与foco/configs/yolov8_gp_data.yaml中的类别一致；
+第2-9个数据为长方体8个定点的像素坐标(x, y)
+- 运行foco/tools/data_preparation_yolov8_gp.py，会将数据转换为yolov8规定以及训练要求的数据（如resize），格式如下：
+0 0.565625 0.2064814814814815 0.5411458333333333 0.20555555555555555 0.5411458333333333 0.21203703703703702 0.5666666666666667 0.21296296296296297 0.565625 0.175 0.5416666666666666 0.175 0.5416666666666666 0.17962962962962964 0.5671875 0.18055555555555555
+第一个数据为分类，与foco/configs/yolov8_gp_data.yaml中的类别一致；
+第2-17个数据为外部数据归一化后的点，从(x, y) --> x y
+- 相关的配置文件在data_preparation_yolov8_gp_config.yaml中。有详细注释
+
+#### 3.2 train
+- 核对yolov8默认配置，在ultralytics/cfg/default.yaml中
+- 进行训练配置，配置文件为foco/yolov8_gp.yaml
+- 首次训练时， 设置new:True, 并配置checkpoint， model_yaml, preset_tatal_epochs。运行foco/tools/yolov8_gp_train.py开始训练。需要中断时，直接在terminal中按ctrl+z
+- resume时，设置new:False，并按实际情况配置resume_checkpoint, resume_total_epochs。运行foco/tools/yolov8_gp_train.py开始训练。中断同理
+- 结果内容都是yolov8自带的，可以查看。
+#### 3.3 测试predict
+- 准备test数据，放在test文件夹中。主要是注意图片的size。
+- 进行训练配置，配置文件为foco/yolov8_gp_predict.yaml。
+- 需要设置checkpoint，并将正确的checkpoint文件拷贝到foco/tolls目录下。
+- 运行foco/tools/yolov8_gp_predict.py即可预测。可根据terminal中的打印内容查看预测结果。
 
 ## 训练经验
 1. loss中，MSE Loss的权重应该调，按照经验，MSE Loss控制着点的精度，如果发现比较歪，可以修改此参数
@@ -135,3 +156,4 @@
 - angle和translation可以精修
 3. default.yaml中，修改iou，用于NMS的 iou threshold
 - 值越大，保留的结果越多，尝试过从0.1到1.0的所有-1次方值
+4. 奇怪，似乎在训练过程中改变loss, 效果会更好～～但是还没掌握改变的规律
